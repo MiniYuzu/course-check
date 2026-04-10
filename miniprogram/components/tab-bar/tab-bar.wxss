@@ -1,0 +1,53 @@
+/* Tab Bar 样式 - 活力版 */
+
+.tab-bar {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: #fff;
+  border-top: 1rpx solid #E2E8F0;
+  padding: 12rpx 0 calc(12rpx + env(safe-area-inset-bottom));
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx 32rpx;
+  gap: 4rpx;
+  transition: all 0.2s;
+}
+
+.tab-icon {
+  font-size: 48rpx;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+
+.tab-item.active .tab-icon {
+  transform: scale(1.1);
+}
+
+.tab-text {
+  font-size: 20rpx;
+  color: #94A3B8;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+
+.tab-item.active .tab-text {
+  color: #2563EB;
+  font-weight: 600;
+}
+
+/* 安全区域占位 */
+.safe-area-bottom {
+  height: constant(safe-area-inset-bottom);
+  height: env(safe-area-inset-bottom);
+}

@@ -1,0 +1,162 @@
+/* 课程卡片组件样式 - 活力版 */
+
+.course-card {
+  position: relative;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+  color: #fff;
+  overflow: hidden;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s;
+}
+
+.course-card:active {
+  transform: scale(0.98);
+}
+
+/* 渐变背景 - 游泳课 */
+.course-card.swim {
+  background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
+}
+
+/* 渐变背景 - 钢琴课 */
+.course-card.piano {
+  background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
+}
+
+/* 渐变背景 - 英语课 */
+.course-card.english {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+/* 装饰圆圈 */
+.decoration-circle {
+  position: absolute;
+  top: -100rpx;
+  right: -60rpx;
+  width: 300rpx;
+  height: 300rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+/* 头部区域 */
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.course-icon {
+  width: 96rpx;
+  height: 96rpx;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  backdrop-filter: blur(10px);
+}
+
+.course-info {
+  flex: 1;
+}
+
+.course-name {
+  font-size: 36rpx;
+  font-weight: 700;
+  display: block;
+}
+
+.course-schedule {
+  font-size: 26rpx;
+  opacity: 0.9;
+  display: block;
+  margin-top: 4rpx;
+}
+
+/* 进度区域 */
+.progress-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.progress-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8rpx;
+}
+
+.progress-count {
+  font-size: 56rpx;
+  font-weight: 800;
+}
+
+.progress-unit {
+  font-size: 28rpx;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.progress-bar {
+  width: 160rpx;
+  height: 12rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6rpx;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6rpx;
+  transition: width 0.3s ease;
+}
+
+/* 打卡按钮 */
+.checkin-btn {
+  width: 100%;
+  height: 96rpx;
+  background: #fff;
+  color: #1E293B;
+  border: none;
+  border-radius: 24rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
+  transition: all 0.2s;
+}
+
+.checkin-btn::after {
+  border: none;
+}
+
+.checkin-btn:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.checkin-btn.completed {
+  background: #10B981;
+  color: #fff;
+}
+
+.checkin-btn[disabled] {
+  background: #10B981;
+  color: #fff;
+  opacity: 1;
+}

@@ -1,0 +1,50 @@
+<!-- 首页 - 活力版 -->
+<view class="page">
+  <!-- 顶部渐变区域 -->
+  <view class="header-section">
+    <view class="header-bg-decoration">
+      <text class="sparkle">✨</text>
+    </view>
+    <view class="header-content">
+      <text class="header-title">课程打卡 🎯</text>
+      <text class="header-subtitle">记录宝贝的每一次进步</text>
+      <view class="streak-badge" wx:if="{{streakDays > 0}}">
+        <text class="streak-icon">🔥</text>
+        <text class="streak-text">连续打卡 {{streakDays}} 天</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 课程列表 -->
+  <scroll-view class="course-list" scroll-y enhanced show-scrollbar>
+    <view class="list-container">
+      <!-- 课程卡片列表 -->
+      <course-card
+        wx:for="{{courses}}"
+        wx:key="id"
+        course-id="{{item.id}}"
+        type="{{item.type}}"
+        icon="{{item.icon}}"
+        name="{{item.name}}"
+        schedule="{{item.schedule}}"
+        completed-count="{{item.completedCount}}"
+        total-count="{{item.totalCount}}"
+        is-checked-in="{{item.isCheckedIn}}"
+        bind:cardtap="onCourseTap"
+        bind:checkin="onCheckin"
+      />
+
+      <!-- 添加课程按钮 -->
+      <view class="add-card" bindtap="onAddCourse">
+        <view class="add-icon">+</view>
+        <text class="add-text">添加新课程</text>
+      </view>
+
+      <!-- 底部占位 -->
+      <view class="bottom-spacer" />
+    </view>
+  </scroll-view>
+
+  <!-- Tab Bar -->
+  <tab-bar current="home" bind:change="onTabChange" />
+</view>

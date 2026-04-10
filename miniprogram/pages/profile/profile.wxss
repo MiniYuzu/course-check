@@ -1,0 +1,151 @@
+/* 个人中心页样式 - 活力版 */
+
+.page {
+  min-height: 100vh;
+  background: #F0F4FF;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部 */
+.header {
+  position: relative;
+  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+  padding: 100rpx 32rpx 40rpx;
+  color: #fff;
+  overflow: hidden;
+}
+
+.header-bg-decoration {
+  position: absolute;
+  top: -100rpx;
+  right: -60rpx;
+  width: 400rpx;
+  height: 400rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+/* 用户信息 */
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
+}
+
+.avatar open-data {
+  width: 100%;
+  height: 100%;
+}
+
+.user-meta {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 40rpx;
+  font-weight: 600;
+  display: block;
+}
+
+.user-id {
+  font-size: 24rpx;
+  opacity: 0.8;
+  display: block;
+  margin-top: 8rpx;
+}
+
+/* 同步状态栏 */
+.sync-status-bar {
+  margin-top: 24rpx;
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* 内容区 */
+.content {
+  flex: 1;
+  padding: 0 24rpx;
+}
+
+/* 菜单区块 */
+.menu-section {
+  margin-top: -20rpx;
+  position: relative;
+  z-index: 2;
+}
+
+.menu-group {
+  background: #fff;
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 32rpx;
+  border-bottom: 1rpx solid #F1F5F9;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background: #F8FAFC;
+}
+
+.menu-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+}
+
+.menu-text {
+  flex: 1;
+  font-size: 32rpx;
+  color: #1E293B;
+  font-weight: 500;
+}
+
+.menu-arrow {
+  font-size: 32rpx;
+  color: #94A3B8;
+}
+
+.menu-switch {
+  transform: scale(0.8);
+}
+
+/* 版本信息 */
+.version-info {
+  text-align: center;
+  padding: 48rpx 0;
+}
+
+.version-info text {
+  font-size: 24rpx;
+  color: #94A3B8;
+}
+
+.bottom-spacer {
+  height: 160rpx;
+}

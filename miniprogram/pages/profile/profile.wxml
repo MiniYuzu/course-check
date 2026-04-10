@@ -1,0 +1,79 @@
+<!-- 个人中心页 - 活力版 -->
+<view class="page">
+  <!-- 顶部 -->
+  <view class="header">
+    <view class="header-bg-decoration"></view>
+
+    <view class="user-info">
+      <view class="avatar">
+        <open-data type="userAvatarUrl" default-avatar="👤"></open-data>
+      </view>
+      <view class="user-meta">
+        <open-data type="userNickName" class="user-name">微信用户</open-data>
+        <text class="user-id">ID: {{userId}}</text>
+      </view>
+    </view>
+
+    <view class="sync-status-bar" bindtap="onSyncTap">
+      <sync-status />
+    </view>
+  </view>
+
+  <!-- 内容区 -->
+  <scroll-view class="content" scroll-y enhanced show-scrollbar>
+    <!-- 功能列表 -->
+    <view class="menu-section">
+      <view class="menu-group">
+        <view class="menu-item" bindtap="onFamilyShare">
+          <view class="menu-icon" style="background: #EFF6FF;">👨‍👩‍👧</view>
+          <text class="menu-text">家庭成员</text>
+          <text class="menu-arrow">›</text>
+        </view>
+
+        <view class="menu-item" bindtap="onReminder">
+          <view class="menu-icon" style="background: #FEF3C7;">🔔</view>
+          <text class="menu-text">上课提醒</text>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+
+      <view class="menu-group">
+        <view class="menu-item" bindtap="onDataExport">
+          <view class="menu-icon" style="background: #D1FAE5;">📊</view>
+          <text class="menu-text">数据导出</text>
+          <text class="menu-arrow">›</text>
+        </view>
+
+        <view class="menu-item" bindtap="onAdvancedMode">
+          <view class="menu-icon" style="background: #EDE9FE;">⚙️</view>
+          <text class="menu-text">高级模式</text>
+          <switch class="menu-switch" checked="{{settings.advancedMode}}" bindchange="onToggleAdvanced" color="#2563EB" />
+        </view>
+      </view>
+
+      <view class="menu-group">
+        <view class="menu-item" bindtap="onFeedback">
+          <view class="menu-icon" style="background: #FCE7F3;">💬</view>
+          <text class="menu-text">意见反馈</text>
+          <text class="menu-arrow">›</text>
+        </view>
+
+        <view class="menu-item" bindtap="onAbout">
+          <view class="menu-icon" style="background: #F1F5F9;">ℹ️</view>
+          <text class="menu-text">关于我们</text>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 版本信息 -->
+    <view class="version-info">
+      <text>课程打卡小程序 v1.0.0</text>
+    </view>
+
+    <view class="bottom-spacer"></view>
+  </scroll-view>
+
+  <!-- Tab Bar -->
+  <tab-bar current="profile" bind:change="onTabChange" />
+</view>

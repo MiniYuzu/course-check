@@ -1,0 +1,140 @@
+<!-- 课程详情页 - 活力版 -->
+<view class="page">
+  <!-- 顶部渐变区域 -->
+  <view class="header-section {{courseType}}">
+    <view class="header-bg-decoration"></view>
+    <view class="header-content">
+      <view class="course-header">
+        <view class="course-icon">
+          <text>{{course.icon}}</text>
+        </view>
+        <view class="course-info">
+          <text class="course-name">{{course.name}}</text>
+          <text class="course-schedule">{{course.schedule}}</text>
+        </view>
+      </view>
+
+      <view class="stats-row">
+        <view class="stat-item">
+          <text class="stat-value">{{stats.total}}</text>
+          <text class="stat-label">总课时</text>
+        </view>
+        <view class="stat-item">
+          <text class="stat-value">{{stats.thisMonth}}</text>
+          <text class="stat-label">本月</text>
+        </view>
+        <view class="stat-item" wx:if="{{course.totalLessons}}">
+          <text class="stat-value">{{progressPercent}}%</text>
+          <text class="stat-label">进度</text>
+        </view>
+      </view>
+
+      <!-- 进度条 -->
+      <view class="progress-bar" wx:if="{{course.totalLessons}}">
+        <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+      </view>
+      <text class="progress-text" wx:if="{{course.totalLessons}}">
+        已完成 {{stats.total}}/{{course.totalLessons}} 节课
+      </text>
+    </view>
+
+    <!-- 返回按钮 -->
+    <view class="back-btn" bindtap="onBack">
+      <text>←</text>
+    </view>
+
+    <!-- 更多操作 -->
+    <view class="more-btn" bindtap="onMore">
+      <text>⋯</text>
+    </view>
+  </view>
+
+  <!-- 打卡按钮（浮动） -->
+  <view class="checkin-float" bindtap="onCheckin" wx:if="{{!isCheckedInToday}}">
+    <view class="checkin-float-btn">
+      <text>一键打卡 🎉</text>
+    </view>
+  </view>
+
+  <!-- 历史记录 -->
+  <view class="history-section">
+    <view class="section-header">
+      <text class="section-title">打卡记录</text>
+      <text class="section-count">共 {{stats.total}} 条</text>
+    </view>
+
+    <scroll-view class="history-list" scroll-y enhanced show-scrollbar
+      refresher-enabled="{{true}}"
+      refresher-triggered="{{isRefreshing}}"
+      bindrefresherrefresh="onRefresh"
+    >
+      <!-- 空状态 -->
+      <empty-state
+        wx:if="{{checkins.length === 0 && !isLoading}}"
+        type="compact"
+        icon="📋"
+        title="还没有打卡记录"
+        desc="点击下方按钮记录今天的学习"
+        btn-text="去打卡"
+        bind:tap="onCheckin"
+      />
+
+      <!-- 记录列表 -->
+      <view class="history-items">
+        <view
+          class="history-item"
+          wx:for="{{checkins}}"
+          wx:key="_id"
+          bindtap="onCheckinTap"
+          data-id="{{item._id}}"
+        >
+          <view class="item-date">
+            <text class="date-day">{{item.day}}</text>
+            <text class="date-month">{{item.month}}月</text>
+          </view>
+
+          <view class="item-content">
+            <text class="item-title">第 {{item.number}} 节课</text>
+            <text class="item-detail" wx:if="{{item.details}}">
+              {{item.details.teacher ? item.details.teacher + ' · ' : ''}}{{item.details.duration}}分钟
+            </text>
+          </view>
+
+          <view class="item-badge">
+            <text>✓</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部占位 -->
+      <view class="bottom-spacer"></view>
+    </scroll-view>
+  </view>
+
+  <!-- 操作菜单 -->
+  <view class="action-sheet {{showActionSheet ? 'show' : ''}}" bindtap="onCloseAction">
+    <view class="action-sheet-content" catchtap="onPreventBubble"
+003e
+      <view class="action-list">
+        <view class="action-item" bindtap="onEdit">
+          <text class="action-icon">✏️</text>
+          <text class="action-text">编辑课程</text>
+        </view>
+
+        <view class="action-item" bindtap="onShare">
+          <text class="action-icon">🔗</text>
+          <text class="action-text">分享课程</text>
+        </view>
+
+        <view class="action-item delete" bindtap="onDelete">
+          <text class="action-icon">🗑️</text>
+          <text class="action-text">删除课程</text>
+        </view>
+      </view>
+
+      <view class="action-cancel" bindtap="onCloseAction">
+        <text>取消</text>
+      </view>
+    </view>
+  </view>
+</view>

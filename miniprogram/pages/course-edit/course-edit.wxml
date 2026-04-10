@@ -1,0 +1,116 @@
+<!-- 添加/编辑课程页 -->
+<view class="page">
+  <!-- 顶部导航 -->
+  <view class="header">
+    <view class="back-btn" bindtap="onBack">
+      <text>←</text>
+    </view>
+    <text class="header-title">{{isEdit ? '编辑课程' : '添加课程'}}</text>
+    <view class="header-right"></view>
+  </view>
+
+  <!-- 表单 -->
+  <scroll-view class="form-container" scroll-y enhanced show-scrollbar>
+    <!-- 图标选择 -->
+    <view class="form-section">
+      <text class="section-label">选择图标</text>
+      <view class="icon-grid">
+        <view
+          class="icon-item {{selectedType === item.type ? 'selected' : ''}}"
+          wx:for="{{courseTypes}}"
+          wx:key="type"
+          bindtap="onSelectType"
+          data-type="{{item.type}}"
+        >
+          <text class="icon-emoji">{{item.icon}}</text>
+          <text class="icon-name">{{item.name}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 基本信息 -->
+    <view class="form-section">
+      <text class="section-label">基本信息</text>
+
+      <view class="input-group">
+        <text class="input-label">课程名称</text>
+        <input
+          class="input-field"
+          placeholder="例如：游泳课、钢琴课"
+          value="{{course.name}}"
+          bindinput="onNameInput"
+          maxlength="20"
+        />
+      </view>
+
+      <view class="input-group">
+        <text class="input-label">总课时（可选）</text>
+        <input
+          class="input-field"
+          placeholder="例如：48"
+          value="{{course.totalLessons}}"
+          bindinput="onTotalLessonsInput"
+          type="number"
+        />
+        <text class="input-hint">设置总课时可以查看完成进度</text>
+      </view>
+
+      <view class="input-group">
+        <text class="input-label">上课时间</text>
+        <input
+          class="input-field"
+          placeholder="例如：每周二、四 18:00"
+          value="{{course.schedule}}"
+          bindinput="onScheduleInput"
+          maxlength="50"
+        />
+      </view>
+
+      <view class="input-group">
+        <text class="input-label">备注（可选）</text>
+        <textarea
+          class="textarea-field"
+          placeholder="记录其他信息，如老师姓名、教室位置等"
+          value="{{course.notes}}"
+          bindinput="onNotesInput"
+          maxlength="200"
+        />
+      </view>
+    </view>
+
+    <!-- 高级选项 -->
+    <view class="form-section">
+      <view class="section-header" bindtap="toggleAdvanced">
+        <text class="section-label">高级选项</text>
+        <text class="toggle-icon">{{showAdvanced ? '▼' : '▶'}}</text>
+      </view>
+
+      <view class="advanced-options {{showAdvanced ? 'show' : ''}}">
+        <view class="input-group">
+          <text class="input-label">提醒设置</text>
+          <switch checked="{{course.reminder}}" bindchange="onReminderChange" color="#2563EB" />
+        </view>
+
+        <view class="input-group" wx:if="{{course.reminder}}">
+          <text class="input-label">提前提醒时间</text>
+          <picker mode="selector" range="{{reminderOptions}}" value="{{reminderIndex}}" bindchange="onReminderTimeChange">
+            <view class="picker-field">
+              {{reminderOptions[reminderIndex]}}
+              <text class="picker-arrow">›</text>
+            </view>
+          </picker>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部占位 -->
+    <view class="bottom-spacer"></view>
+  </scroll-view>
+
+  <!-- 保存按钮 -->
+  <view class="footer">
+    <button class="save-btn {{canSave ? '' : 'disabled'}}" bindtap="onSave">
+      {{isEdit ? '保存修改' : '添加课程'}}
+    </button>
+  </view>
+</view>

@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课程打卡 - 专注版</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      background: #F8FAFC;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .phone {
+      width: 375px;
+      height: 812px;
+      background: #fff;
+      border-radius: 40px;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.15);
+      overflow: hidden;
+      position: relative;
+    }
+    .screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #F8FAFC;
+    }
+    /* 顶部 */
+    .header {
+      background: #fff;
+      padding: 50px 24px 20px;
+      text-align: center;
+      border-bottom: 0.5px solid #E2E8F0;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1E293B;
+    }
+    .date {
+      font-size: 13px;
+      color: #94A3B8;
+      margin-top: 4px;
+    }
+    /* 内容区 */
+    .content {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    /* 课程卡片 - 极简风格 */
+    .course-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: transform 0.2s;
+    }
+    .course-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .course-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .course-icon {
+      width: 44px;
+      height: 44px;
+      background: #EFF6FF;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #2563EB;
+    }
+    .course-info h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1E293B;
+    }
+    .course-info p {
+      font-size: 13px;
+      color: #64748B;
+      margin-top: 2px;
+    }
+    .course-stats {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin-bottom: 20px;
+    }
+    .stat-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: #64748B;
+    }
+    /* 打卡按钮 - 核心 */
+    .checkin-btn {
+      width: 100%;
+      height: 52px;
+      background: #2563EB;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .checkin-btn:hover {
+      background: #3B82F6;
+      transform: scale(1.02);
+    }
+    .checkin-btn:active {
+      transform: scale(0.98);
+    }
+    .checkin-btn.completed {
+      background: #10B981;
+    }
+    /* 添加按钮 */
+    .add-btn {
+      width: 100%;
+      height: 52px;
+      background: transparent;
+      border: 1.5px dashed #CBD5E1;
+      border-radius: 12px;
+      color: #64748B;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .add-btn:hover {
+      border-color: #2563EB;
+      color: #2563EB;
+    }
+    /* Tab Bar */
+    .tabbar {
+      background: #fff;
+      border-top: 0.5px solid #E2E8F0;
+      padding: 8px 0 30px;
+      display: flex;
+      justify-content: space-around;
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 20px;
+      font-size: 11px;
+      color: #94A3B8;
+      cursor: pointer;
+    }
+    .tab-item.active {
+      color: #2563EB;
+    }
+    .tab-icon {
+      font-size: 22px;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="screen">
+      <div class="header">
+        <h1>课程打卡</h1>
+        <div class="date">2026年4月9日 周三</div>
+      </div>
+
+      <div class="content">
+        <!-- 游泳课 -->
+        <div class="course-card">
+          <div class="course-header">
+            <div class="course-icon">🏊</div>
+            <div class="course-info">
+              <h3>游泳课</h3>
+              <p>每周二、四、六</p>
+            </div>
+          </div>
+          <div class="course-stats">
+            <span class="stat-number">12</span>
+            <span class="stat-label">节课已完成</span>
+          </div>
+          <button class="checkin-btn completed">✓ 今日已打卡</button>
+        </div>
+
+        <!-- 钢琴课 -->
+        <div class="course-card">
+          <div class="course-header">
+            <div class="course-icon">🎹</div>
+            <div class="course-info">
+              <h3>钢琴课</h3>
+              <p>每周一、三、五</p>
+            </div>
+          </div>
+          <div class="course-stats">
+            <span class="stat-number">8</span>
+            <span class="stat-label">节课已完成</span>
+          </div>
+          <button class="checkin-btn">一键打卡</button>
+        </div>
+
+        <!-- 添加课程 -->
+        <button class="add-btn">
+          <span>+</span>
+          <span>添加课程</span>
+        </button>
+      </div>
+
+      <div class="tabbar">
+        <div class="tab-item active">
+          <span class="tab-icon">🏠</span>
+          <span>首页</span>
+        </div>
+        <div class="tab-item">
+          <span class="tab-icon">📊</span>
+          <span>统计</span>
+        </div>
+        <div class="tab-item">
+          <span class="tab-icon">👤</span>
+          <span>我的</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

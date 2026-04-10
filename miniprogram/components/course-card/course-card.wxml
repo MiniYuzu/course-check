@@ -1,0 +1,37 @@
+<!-- 课程卡片组件 - 活力版 -->
+<view class="course-card {{type}}" bindtap="onCardTap">
+  <!-- 装饰圆圈 -->
+  <view class="decoration-circle"></view>
+
+  <!-- 头部：图标和标题 -->
+  <view class="card-header">
+    <view class="course-icon">
+      <text>{{icon}}</text>
+    </view>
+    <view class="course-info">
+      <text class="course-name">{{name}}</text>
+      <text class="course-schedule">{{schedule}}</text>
+    </view>
+  </view>
+
+  <!-- 进度区域 -->
+  <view class="progress-section">
+    <view class="progress-main">
+      <text class="progress-count">{{completedCount}}</text>
+      <text class="progress-unit">节课</text>
+    </view>
+    <view class="progress-bar">
+      <view class="progress-fill" style="width: {{progressPercent}}%"></view>
+    </view>
+  </view>
+
+  <!-- 打卡按钮 -->
+  <button
+    class="checkin-btn {{isCheckedIn ? 'completed' : ''}}"
+    catchtap="onCheckinTap"
+    disabled="{{isCheckedIn}}"
+  >
+    <text wx:if="{{isCheckedIn}}">✓ 今日已打卡</text>
+    <text wx:else>一键打卡 🎉</text>
+  </button>
+</view>

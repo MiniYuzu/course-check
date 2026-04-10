@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课程打卡 - 信息版</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      background: #F1F5F9;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .phone {
+      width: 375px;
+      height: 812px;
+      background: #fff;
+      border-radius: 40px;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.15);
+      overflow: hidden;
+      position: relative;
+    }
+    .screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #F8FAFC;
+    }
+    /* 顶部 - 紧凑 */
+    .header {
+      background: #fff;
+      padding: 50px 16px 12px;
+      border-bottom: 0.5px solid #E2E8F0;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1E293B;
+    }
+    .header-date {
+      font-size: 12px;
+      color: #64748B;
+    }
+    /* 统计概览 */
+    .stats-overview {
+      display: flex;
+      gap: 8px;
+    }
+    .stat-pill {
+      flex: 1;
+      background: #F1F5F9;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+    .stat-pill-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2563EB;
+    }
+    .stat-pill-label {
+      font-size: 11px;
+      color: #64748B;
+      margin-top: 2px;
+    }
+    .stat-pill.streak {
+      background: #FEF3C7;
+    }
+    .stat-pill.streak .stat-pill-value {
+      color: #F59E0B;
+    }
+    /* 内容区 */
+    .content {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748B;
+      margin: 8px 4px 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    /* 课程卡片 - 紧凑信息 */
+    .course-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      border-left: 3px solid #2563EB;
+    }
+    .course-card.piano { border-left-color: #F59E0B; }
+    .course-card.english { border-left-color: #10B981; }
+
+    .course-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .course-icon {
+      width: 36px;
+      height: 36px;
+      background: #EFF6FF;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .course-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .course-info h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1E293B;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .course-info p {
+      font-size: 11px;
+      color: #94A3B8;
+      margin-top: 1px;
+    }
+    .checkin-btn-small {
+      width: 64px;
+      height: 32px;
+      background: #2563EB;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .checkin-btn-small.completed {
+      background: #10B981;
+    }
+    /* 进度条区域 */
+    .progress-area {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .progress-bar-bg {
+      flex: 1;
+      height: 6px;
+      background: #E2E8F0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+    .progress-bar-fill.blue { background: #2563EB; }
+    .progress-bar-fill.orange { background: #F59E0B; }
+    .progress-bar-fill.green { background: #10B981; }
+
+    .progress-text {
+      font-size: 12px;
+      color: #64748B;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .progress-text strong {
+      color: #1E293B;
+    }
+    /* 快捷操作 */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 0.5px solid #F1F5F9;
+    }
+    .quick-action {
+      flex: 1;
+      padding: 8px;
+      background: #F8FAFC;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 12px;
+      color: #64748B;
+      cursor: pointer;
+    }
+    .quick-action:hover {
+      background: #EFF6FF;
+      color: #2563EB;
+    }
+    /* 添加按钮 */
+    .add-btn {
+      width: 100%;
+      height: 44px;
+      background: #fff;
+      border: 1px dashed #CBD5E1;
+      border-radius: 10px;
+      color: #64748B;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    /* Tab Bar */
+    .tabbar {
+      background: #fff;
+      border-top: 0.5px solid #E2E8F0;
+      padding: 6px 0 28px;
+      display: flex;
+      justify-content: space-around;
+    }
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 16px;
+      font-size: 10px;
+      color: #94A3B8;
+      cursor: pointer;
+    }
+    .tab-item.active {
+      color: #2563EB;
+    }
+    .tab-icon {
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone">
+    <div class="screen">
+      <div class="header">
+        <div class="header-top">
+          <h1>课程打卡</h1>
+          <span class="header-date">4月9日 周三</span>
+        </div>
+        <div class="stats-overview">
+          <div class="stat-pill">
+            <div class="stat-pill-value">8</div>
+            <div class="stat-pill-label">本周课时</div>
+          </div>
+          <div class="stat-pill streak">
+            <div class="stat-pill-value">12</div>
+            <div class="stat-pill-label">连续打卡</div>
+          </div>
+          <div class="stat-pill">
+            <div class="stat-pill-value">3</div>
+            <div class="stat-pill-label">进行中</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="section-title">我的课程</div>
+
+        <!-- 游泳课 -->
+        <div class="course-card">
+          <div class="course-main">
+            <div class="course-icon">🏊</div>
+            <div class="course-info">
+              <h3>游泳课 · 提高班</h3>
+              <p>下次: 明天 16:00 | 剩余 36 课时</p>
+            </div>
+            <button class="checkin-btn-small completed">已打卡</button>
+          </div>
+          <div class="progress-area">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill blue" style="width: 60%"></div>
+            </div>
+            <div class="progress-text"><strong>12</strong>/20 节</div>
+          </div>
+          <div class="quick-actions">
+            <div class="quick-action">📅 排期</div>
+            <div class="quick-action">📊 统计</div>
+            <div class="quick-action">⚙️ 设置</div>
+          </div>
+        </div>
+
+        <!-- 钢琴课 -->
+        <div class="course-card piano">
+          <div class="course-main">
+            <div class="course-icon" style="background: #FEF3C7;">🎹</div>
+            <div class="course-info">
+              <h3>钢琴课 · 初级</h3>
+              <p>下次: 周五 18:30 | 剩余 24 课时</p>
+            </div>
+            <button class="checkin-btn-small">打卡</button>
+          </div>
+          <div class="progress-area">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill orange" style="width: 40%"></div>
+            </div>
+            <div class="progress-text"><strong>8</strong>/20 节</div>
+          </div>
+          <div class="quick-actions">
+            <div class="quick-action">📅 排期</div>
+            <div class="quick-action">📊 统计</div>
+            <div class="quick-action">⚙️ 设置</div>
+          </div>
+        </div>
+
+        <!-- 英语课 -->
+        <div class="course-card english">
+          <div class="course-main">
+            <div class="course-icon" style="background: #D1FAE5;">📚</div>
+            <div class="course-info">
+              <h3>英语课 · 口语</h3>
+              <p>下次: 周日 09:00 | 剩余 45 课时</p>
+            </div>
+            <button class="checkin-btn-small">打卡</button>
+          </div>
+          <div class="progress-area">
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill green" style="width: 25%"></div>
+            </div>
+            <div class="progress-text"><strong>5</strong>/20 节</div>
+          </div>
+          <div class="quick-actions">
+            <div class="quick-action">📅 排期</div>
+            <div class="quick-action">📊 统计</div>
+            <div class="quick-action">⚙️ 设置</div>
+          </div>
+        </div>
+
+        <button class="add-btn">
+          <span>+</span>
+          <span>添加课程</span>
+        </button>
+      </div>
+
+      <div class="tabbar">
+        <div class="tab-item active">
+          <span class="tab-icon">🏠</span>
+          <span>首页</span>
+        </div>
+        <div class="tab-item">
+          <span class="tab-icon">📊</span>
+          <span>统计</span>
+        </div>
+        <div class="tab-item">
+          <span class="tab-icon">📅</span>
+          <span>日历</span>
+        </div>
+        <div class="tab-item">
+          <span class="tab-icon">👤</span>
+          <span>我的</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

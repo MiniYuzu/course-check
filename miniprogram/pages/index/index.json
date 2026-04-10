@@ -1,0 +1,9 @@
+{
+  "usingComponents": {
+    "course-card": "/components/course-card/course-card",
+    "tab-bar": "/components/tab-bar/tab-bar",
+    "empty-state": "/components/empty-state/empty-state",
+    "sync-status": "/components/sync-status/sync-status"
+  },
+  "navigationStyle": "custom"
+}

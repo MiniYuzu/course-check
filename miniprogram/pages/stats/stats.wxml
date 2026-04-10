@@ -1,0 +1,104 @@
+<!-- 统计页 - 活力版 -->
+<view class="page">
+  <!-- 顶部 -->
+  <view class="header">
+    <view class="header-bg-decoration"></view>
+    <text class="header-title">📊 学习统计</text>
+    <text class="header-subtitle">记录成长的每一步</text>
+  </view>
+
+  <!-- 内容区 -->
+  <scroll-view class="content" scroll-y enhanced show-scrollbar>
+    <!-- 总览卡片 -->
+    <view class="overview-card">
+      <view class="overview-grid">
+        <view class="overview-item">
+          <text class="overview-value">{{totalStats.courses}}</text>
+          <text class="overview-label">课程总数</text>
+        </view>
+        <view class="overview-item">
+          <text class="overview-value">{{totalStats.checkins}}</text>
+          <text class="overview-label">累计打卡</text>
+        </view>
+        <view class="overview-item">
+          <text class="overview-value">{{totalStats.streak}}</text>
+          <text class="overview-label">连续打卡</text>
+        </view>
+        <view class="overview-item">
+          <text class="overview-value">{{totalStats.thisMonth}}</text>
+          <text class="overview-label">本月课时</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 周打卡趋势 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">近7天打卡</text>
+      </view>
+      <view class="week-chart">
+        <view class="chart-bar" wx:for="{{weekData}}" wx:key="day">
+          <view class="bar-fill" style="height: {{item.percent}}%"></view>
+          <text class="bar-day">{{item.day}}</text>
+          <text class="bar-count">{{item.count}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 课程排行 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">课程排行</text>
+      </view>
+      <view class="rank-list">
+        <view class="rank-item" wx:for="{{courseRanks}}" wx:key="id">
+          <text class="rank-num">{{index + 1}}</text>
+          <view class="rank-icon {{item.type}}">
+            <text>{{item.icon}}</text>
+          </view>
+          <view class="rank-info">
+            <text class="rank-name">{{item.name}}</text>
+            <view class="rank-progress">
+              <view class="progress-bar">
+                <view class="progress-fill" style="width: {{item.progress}}%"></view>
+              </view>
+              <text class="progress-text">{{item.count}}节</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 月度统计 -->
+    <view class="section">
+      <view class="section-header">
+        <text class="section-title">月度统计</text>
+        <picker mode="selector" range="{{months}}" value="{{selectedMonthIndex}}" bindchange="onMonthChange">
+          <view class="month-picker">
+            {{months[selectedMonthIndex]}}
+            <text class="picker-arrow">▼</text>
+          </view>
+        </picker>
+      </view>
+      <view class="month-stats">
+        <view class="month-stat-item">
+          <text class="month-stat-value">{{monthStats.total}}</text>
+          <text class="month-stat-label">总课时</text>
+        </view>
+        <view class="month-stat-item">
+          <text class="month-stat-value">{{monthStats.activeDays}}</text>
+          <text class="month-stat-label">活跃天数</text>
+        </view>
+        <view class="month-stat-item">
+          <text class="month-stat-value">{{monthStats.avgPerWeek}}</text>
+          <text class="month-stat-label">周均课时</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="bottom-spacer"></view>
+  </scroll-view>
+
+  <!-- Tab Bar -->
+  <tab-bar current="stats" bind:change="onTabChange" />
+</view>

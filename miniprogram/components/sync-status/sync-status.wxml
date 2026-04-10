@@ -1,0 +1,9 @@
+<!-- 同步状态组件 -->
+<view class="sync-status {{status}} {{visible ? 'visible' : ''}}" bindtap="onTap">
+  <view class="sync-indicator">
+    <view class="sync-spinner" wx:if="{{status === 'syncing'}}"></view>
+    <text class="sync-icon" wx:else>{{icon}}</text>
+  </view>
+  <text class="sync-text">{{text}}</text>
+  <text class="sync-count" wx:if="{{count > 0}}">{{count}}</text>
+</view>

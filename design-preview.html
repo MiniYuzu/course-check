@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>课程打卡小程序 - 设计系统预览</title>
+  <style>
+    /* CSS Variables - Design System */
+    :root {
+      /* Brand Colors */
+      --color-primary: #2563EB;
+      --color-primary-light: #3B82F6;
+      --color-primary-lightest: #EFF6FF;
+
+      /* Functional Colors */
+      --color-success: #10B981;
+      --color-success-light: #D1FAE5;
+      --color-warning: #F59E0B;
+      --color-warning-light: #FEF3C7;
+      --color-error: #EF4444;
+      --color-error-light: #FEE2E2;
+
+      /* Neutral Colors */
+      --color-text-primary: #1E293B;
+      --color-text-secondary: #64748B;
+      --color-text-placeholder: #94A3B8;
+      --color-border: #E2E8F0;
+      --color-surface: #F1F5F9;
+      --color-background: #F8FAFC;
+      --color-white: #FFFFFF;
+
+      /* Typography */
+      --font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans CJK SC', 'Microsoft YaHei', sans-serif;
+
+      /* Spacing */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+
+      /* Border Radius */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+
+      /* Shadows */
+      --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 8px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 16px rgba(0,0,0,0.1);
+
+      /* Animation */
+      --ease-out: cubic-bezier(0, 0, 0.2, 1);
+      --ease-in: cubic-bezier(0.4, 0, 1, 1);
+      --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+      --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    /* Reset & Base */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--color-background);
+      color: var(--color-text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--space-xl);
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: var(--space-2xl) 0;
+      border-bottom: 1px solid var(--color-border);
+      margin-bottom: var(--space-2xl);
+    }
+
+    .header h1 {
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--color-primary);
+      margin-bottom: var(--space-md);
+      letter-spacing: -0.02em;
+    }
+
+    .header p {
+      font-size: 18px;
+      color: var(--color-text-secondary);
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: var(--space-2xl);
+    }
+
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: var(--space-lg);
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 24px;
+      background: var(--color-primary);
+      border-radius: var(--radius-sm);
+    }
+
+    /* Typography Specimens */
+    .typography-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .type-sample {
+      background: var(--color-white);
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .type-sample .label {
+      font-size: 12px;
+      color: var(--color-text-placeholder);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: var(--space-sm);
+    }
+
+    .type-sample .demo {
+      color: var(--color-text-primary);
+    }
+
+    .type-large-title { font-size: 48px; font-weight: 700; }
+    .type-title { font-size: 40px; font-weight: 600; }
+    .type-subtitle { font-size: 36px; font-weight: 500; }
+    .type-body { font-size: 32px; font-weight: 400; }
+    .type-caption { font-size: 28px; font-weight: 400; }
+    .type-small { font-size: 24px; font-weight: 400; }
+
+    /* Color Palette */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+    }
+
+    .color-swatch {
+      background: var(--color-white);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      transition: transform 200ms var(--ease-out);
+    }
+
+    .color-swatch:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .color-block {
+      height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+
+    .color-info {
+      padding: var(--space-md);
+    }
+
+    .color-name {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: var(--space-xs);
+    }
+
+    .color-hex {
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+
+    /* Component Showcase */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--space-lg);
+    }
+
+    .component-card {
+      background: var(--color-white);
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .component-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-md);
+      text-transform: uppercase;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 44px;
+      padding: 0 24px;
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 150ms var(--ease-out);
+    }
+
+    .btn:active {
+      transform: scale(0.96);
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: var(--color-white);
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-light);
+    }
+
+    .btn-secondary {
+      background: var(--color-white);
+      color: var(--color-text-primary);
+      border: 1px solid var(--color-border);
+    }
+
+    .btn-success {
+      background: var(--color-success);
+      color: var(--color-white);
+    }
+
+    /* Course Card Preview */
+    .course-card-preview {
+      background: var(--color-white);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-md);
+      max-width: 320px;
+    }
+
+    .course-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+
+    .course-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--color-primary-lightest);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--color-primary);
+      font-weight: 600;
+    }
+
+    .course-name {
+      font-size: 18px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    .course-arrow {
+      color: var(--color-text-placeholder);
+    }
+
+    .course-stats {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-md);
+    }
+
+    .course-count {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+    }
+
+    .checkin-btn {
+      width: 100%;
+      height: 44px;
+      background: var(--color-primary);
+      color: var(--color-white);
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 150ms var(--ease-out);
+    }
+
+    .checkin-btn:hover {
+      background: var(--color-primary-light);
+    }
+
+    .checkin-btn:active {
+      transform: scale(0.96);
+    }
+
+    /* Toast Preview */
+    .toast-preview {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+
+    .toast {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .toast-success {
+      background: var(--color-success-light);
+      color: var(--color-success);
+    }
+
+    .toast-error {
+      background: var(--color-error-light);
+      color: var(--color-error);
+    }
+
+    .toast-warning {
+      background: var(--color-warning-light);
+      color: var(--color-warning);
+    }
+
+    /* Tab Bar Preview */
+    .tab-bar {
+      display: flex;
+      justify-content: space-around;
+      padding: var(--space-sm) 0;
+      border-top: 0.5px solid var(--color-border);
+      background: var(--color-white);
+    }
+
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: var(--space-sm);
+      font-size: 10px;
+      color: var(--color-text-secondary);
+    }
+
+    .tab-item.active {
+      color: var(--color-primary);
+    }
+
+    .tab-icon {
+      font-size: 24px;
+    }
+
+    /* Animation Demo */
+    .animation-demo {
+      display: flex;
+      gap: var(--space-lg);
+      flex-wrap: wrap;
+    }
+
+    .anim-box {
+      width: 80px;
+      height: 80px;
+      background: var(--color-primary);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .anim-box:hover {
+      animation: bounce 600ms var(--ease-bounce);
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+
+    .pulse-demo {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Empty State Preview */
+    .empty-state {
+      text-align: center;
+      padding: var(--space-2xl);
+      background: linear-gradient(135deg, var(--color-primary-lightest) 0%, var(--color-background) 100%);
+      border-radius: var(--radius-lg);
+    }
+
+    .empty-illustration {
+      width: 160px;
+      height: 160px;
+      margin: 0 auto var(--space-lg);
+      background: var(--color-white);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 80px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .empty-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: var(--space-sm);
+    }
+
+    .empty-desc {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      margin-bottom: var(--space-lg);
+    }
+
+    /* Spacing Scale */
+    .spacing-scale {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+
+    .spacing-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .spacing-label {
+      width: 60px;
+      font-size: 14px;
+      color: var(--color-text-secondary);
+    }
+
+    .spacing-visual {
+      background: var(--color-primary);
+      height: 20px;
+      border-radius: var(--radius-sm);
+    }
+
+    .spacing-value {
+      font-size: 12px;
+      color: var(--color-text-placeholder);
+      font-family: monospace;
+    }
+
+    /* Mini Program Mockup */
+    .phone-mockup {
+      width: 375px;
+      height: 812px;
+      background: var(--color-background);
+      border-radius: 40px;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      margin: 0 auto;
+      position: relative;
+      border: 8px solid #1a1a1a;
+    }
+
+    .phone-screen {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .phone-header {
+      background: var(--color-white);
+      padding: var(--space-md);
+      padding-top: 48px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 17px;
+      border-bottom: 0.5px solid var(--color-border);
+    }
+
+    .phone-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-md);
+    }
+
+    .phone-tabbar {
+      background: var(--color-white);
+      border-top: 0.5px solid var(--color-border);
+      padding-bottom: 34px;
+    }
+
+    .status-bar {
+      position: absolute;
+      top: 8px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: var(--space-md);
+      }
+
+      .header h1 {
+        font-size: 32px;
+      }
+
+      .phone-mockup {
+        width: 100%;
+        max-width: 375px;
+        height: 700px;
+      }
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: var(--space-2xl);
+      border-top: 1px solid var(--color-border);
+      color: var(--color-text-secondary);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1>课程打卡小程序</h1>
+      <p>设计系统 v1.1 — 温暖、专业、渐进</p>
+    </header>
+
+    <!-- Typography Section -->
+    <section class="section">
+      <h2 class="section-title">字体系统</h2>
+      <div class="typography-grid">
+        <div class="type-sample">
+          <div class="label">大标题 48px / Bold</div>
+          <div class="demo type-large-title">记录成长</div>
+        </div>
+        <div class="type-sample">
+          <div class="label">标题 40px / Semibold</div>
+          <div class="demo type-title">游泳课</div>
+        </div>
+        <div class="type-sample">
+          <div class="label">小标题 36px / Medium</div>
+          <div class="demo type-subtitle">已上 12 节</div>
+        </div>
+        <div class="type-sample">
+          <div class="label">正文 32px / Regular</div>
+          <div class="demo type-body">点击打卡记录今天</div>
+        </div>
+        <div class="type-sample">
+          <div class="label">辅助文字 28px</div>
+          <div class="demo type-caption">2026年4月9日</div>
+        </div>
+        <div class="type-sample">
+          <div class="label">小字 24px</div>
+          <div class="demo type-small">剩余 36 课时</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Color Palette Section -->
+    <section class="section">
+      <h2 class="section-title">色彩系统</h2>
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="color-block" style="background: #2563EB; color: white;">品牌主色</div>
+          <div class="color-info">
+            <div class="color-name">Primary</div>
+            <div class="color-hex">#2563EB</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #3B82F6; color: white;">品牌浅色</div>
+          <div class="color-info">
+            <div class="color-name">Primary Light</div>
+            <div class="color-hex">#3B82F6</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #10B981; color: white;">成功绿</div>
+          <div class="color-info">
+            <div class="color-name">Success</div>
+            <div class="color-hex">#10B981</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #F59E0B; color: white;">警告橙</div>
+          <div class="color-info">
+            <div class="color-name">Warning</div>
+            <div class="color-hex">#F59E0B</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #EF4444; color: white;">错误红</div>
+          <div class="color-info">
+            <div class="color-name">Error</div>
+            <div class="color-hex">#EF4444</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #1E293B; color: white;">主文字</div>
+          <div class="color-info">
+            <div class="color-name">Text Primary</div>
+            <div class="color-hex">#1E293B</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #64748B; color: white;">次文字</div>
+          <div class="color-info">
+            <div class="color-name">Text Secondary</div>
+            <div class="color-hex">#64748B</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-block" style="background: #F8FAFC; color: #1E293B;">页面背景</div>
+          <div class="color-info">
+            <div class="color-name">Background</div>
+            <div class="color-hex">#F8FAFC</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Components Section -->
+    <section class="section">
+      <h2 class="section-title">组件展示</h2>
+      <div class="component-grid">
+        <!-- Buttons -->
+        <div class="component-card">
+          <div class="component-title">按钮</div>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <button class="btn btn-primary">一键打卡</button>
+            <button class="btn btn-secondary">查看详情</button>
+            <button class="btn btn-success">✓ 已打卡</button>
+          </div>
+        </div>
+
+        <!-- Course Card -->
+        <div class="component-card">
+          <div class="component-title">课程卡片</div>
+          <div class="course-card-preview">
+            <div class="course-header">
+              <div class="course-icon">游</div>
+              <div class="course-name">游泳课</div>
+              <span class="course-arrow">›</span>
+            </div>
+            <div class="course-stats">
+              已上 <span class="course-count">12</span> 节课
+            </div>
+            <button class="checkin-btn">一键打卡</button>
+          </div>
+        </div>
+
+        <!-- Toast -->
+        <div class="component-card">
+          <div class="component-title">Toast 提示</div>
+          <div class="toast-preview">
+            <div class="toast toast-success">✓ 打卡成功</div>
+            <div class="toast toast-error">✗ 网络错误</div>
+            <div class="toast toast-warning">⚠ 今天已经打卡</div>
+          </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="component-card">
+          <div class="component-title">底部 Tab 栏</div>
+          <div class="tab-bar">
+            <div class="tab-item active">
+              <span class="tab-icon">🏠</span>
+              <span>首页</span>
+            </div>
+            <div class="tab-item">
+              <span class="tab-icon">📊</span>
+              <span>统计</span>
+            </div>
+            <div class="tab-item">
+              <span class="tab-icon">👤</span>
+              <span>我的</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Spacing Section -->
+    <section class="section">
+      <h2 class="section-title">间距系统 (8px 基准)</h2>
+      <div class="component-card">
+        <div class="spacing-scale">
+          <div class="spacing-item">
+            <span class="spacing-label">xs</span>
+            <div class="spacing-visual" style="width: 4px;"></div>
+            <span class="spacing-value">4px / 8rpx</span>
+          </div>
+          <div class="spacing-item">
+            <span class="spacing-label">sm</span>
+            <div class="spacing-visual" style="width: 8px;"></div>
+            <span class="spacing-value">8px / 16rpx</span>
+          </div>
+          <div class="spacing-item">
+            <span class="spacing-label">md</span>
+            <div class="spacing-visual" style="width: 16px;"></div>
+            <span class="spacing-value">16px / 32rpx</span>
+          </div>
+          <div class="spacing-item">
+            <span class="spacing-label">lg</span>
+            <div class="spacing-visual" style="width: 24px;"></div>
+            <span class="spacing-value">24px / 48rpx</span>
+          </div>
+          <div class="spacing-item">
+            <span class="spacing-label">xl</span>
+            <div class="spacing-visual" style="width: 32px;"></div>
+            <span class="spacing-value">32px / 64rpx</span>
+          </div>
+          <div class="spacing-item">
+            <span class="spacing-label">2xl</span>
+            <div class="spacing-visual" style="width: 48px;"></div>
+            <span class="spacing-value">48px / 96rpx</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Animation Section -->
+    <section class="section">
+      <h2 class="section-title">动效示意 (hover 查看)</h2>
+      <div class="component-card">
+        <div class="animation-demo">
+          <div class="anim-box">弹跳</div>
+          <div class="anim-box pulse-demo">脉冲</div>
+        </div>
+        <p style="margin-top: 16px; font-size: 14px; color: var(--color-text-secondary);">
+          缓动曲线: ease-out (进入) / ease-in (离开) / bounce (庆祝)
+        </p>
+      </div>
+    </section>
+
+    <!-- Empty State Section -->
+    <section class="section">
+      <h2 class="section-title">空状态设计</h2>
+      <div class="component-grid">
+        <div class="empty-state">
+          <div class="empty-illustration">🌱</div>
+          <div class="empty-title">记录孩子的每一次成长</div>
+          <div class="empty-desc">从添加第一节课开始<br>记录他们的进步</div>
+          <button class="btn btn-primary">开始记录</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mini Program Mockup -->
+    <section class="section">
+      <h2 class="section-title">小程序界面预览</h2>
+      <div class="phone-mockup">
+        <div class="status-bar">
+          <span>9:41</span>
+          <span>📶 🔋</span>
+        </div>
+        <div class="phone-screen">
+          <div class="phone-header">课程打卡</div>
+          <div class="phone-content">
+            <!-- Course Card 1 -->
+            <div class="course-card-preview" style="margin-bottom: 16px;">
+              <div class="course-header">
+                <div class="course-icon">游</div>
+                <div class="course-name">游泳课</div>
+                <span class="course-arrow">›</span>
+              </div>
+              <div class="course-stats">
+                已上 <span class="course-count">12</span> 节课
+              </div>
+              <button class="checkin-btn">一键打卡</button>
+            </div>
+            <!-- Course Card 2 -->
+            <div class="course-card-preview" style="margin-bottom: 16px;">
+              <div class="course-header">
+                <div class="course-icon" style="background: #FEF3C7; color: #F59E0B;">钢</div>
+                <div class="course-name">钢琴课</div>
+                <span class="course-arrow">›</span>
+              </div>
+              <div class="course-stats">
+                已上 <span class="course-count">8</span> 节课
+              </div>
+              <button class="checkin-btn">一键打卡</button>
+            </div>
+            <!-- Add Button -->
+            <button class="btn btn-secondary" style="width: 100%;">+ 添加课程</button>
+          </div>
+          <div class="phone-tabbar">
+            <div class="tab-bar" style="border-top: none;">
+              <div class="tab-item active">
+                <span class="tab-icon">🏠</span>
+                <span>首页</span>
+              </div>
+              <div class="tab-item">
+                <span class="tab-icon">📊</span>
+                <span>统计</span>
+              </div>
+              <div class="tab-item">
+                <span class="tab-icon">👤</span>
+                <span>我的</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>课程打卡小程序 · 设计系统 v1.1</p>
+      <p style="margin-top: 8px; font-size: 12px;">Created with design-consultation skill</p>
+    </footer>
+  </div>
+</body>
+</html>

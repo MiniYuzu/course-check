@@ -1,0 +1,407 @@
+/* 课程详情页样式 - 活力版 */
+
+.page {
+  min-height: 100vh;
+  background: #F8FAFC;
+}
+
+/* 顶部区域 */
+.header-section {
+  position: relative;
+  padding: 120rpx 32rpx 48rpx;
+  color: #fff;
+  overflow: hidden;
+}
+
+.header-section.swim {
+  background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
+}
+
+.header-section.piano {
+  background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
+}
+
+.header-section.english {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.header-section.art {
+  background: linear-gradient(135deg, #EC4899 0%, #BE185D 100%);
+}
+
+.header-section.dance {
+  background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
+}
+
+.header-section.sports {
+  background: linear-gradient(135deg, #F97316 0%, #EA580C 100%);
+}
+
+.header-section.music {
+  background: linear-gradient(135deg, #06B6D4 0%, #0891B2 100%);
+}
+
+.header-section.other {
+  background: linear-gradient(135deg, #64748B 0%, #475569 100%);
+}
+
+.header-bg-decoration {
+  position: absolute;
+  top: -100rpx;
+  right: -60rpx;
+  width: 400rpx;
+  height: 400rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+/* 返回按钮 */
+.back-btn {
+  position: absolute;
+  top: 80rpx;
+  left: 24rpx;
+  width: 64rpx;
+  height: 64rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  backdrop-filter: blur(10rpx);
+}
+
+.back-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 更多按钮 */
+.more-btn {
+  position: absolute;
+  top: 80rpx;
+  right: 24rpx;
+  width: 64rpx;
+  height: 64rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  backdrop-filter: blur(10rpx);
+}
+
+.more-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* 课程头部 */
+.course-header {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-bottom: 40rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.course-icon {
+  width: 120rpx;
+  height: 120rpx;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+  backdrop-filter: blur(10rpx);
+}
+
+.course-info {
+  flex: 1;
+}
+
+.course-name {
+  font-size: 48rpx;
+  font-weight: 700;
+  display: block;
+}
+
+.course-schedule {
+  font-size: 28rpx;
+  opacity: 0.9;
+  display: block;
+  margin-top: 8rpx;
+}
+
+/* 统计行 */
+.stats-row {
+  display: flex;
+  gap: 48rpx;
+  margin-bottom: 24rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.stat-value {
+  font-size: 56rpx;
+  font-weight: 800;
+}
+
+.stat-label {
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+/* 进度条 */
+.progress-bar {
+  height: 12rpx;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 6rpx;
+  overflow: hidden;
+  margin-bottom: 12rpx;
+  position: relative;
+  z-index: 1;
+}
+
+.progress-fill {
+  height: 100%;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 6rpx;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 26rpx;
+  opacity: 0.9;
+  position: relative;
+  z-index: 1;
+}
+
+/* 浮动打卡按钮 */
+.checkin-float {
+  position: fixed;
+  bottom: 180rpx;
+  right: 32rpx;
+  z-index: 100;
+}
+
+.checkin-float-btn {
+  padding: 24rpx 40rpx;
+  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 600;
+  border-radius: 48rpx;
+  box-shadow: 0 8rpx 32rpx rgba(37, 99, 235, 0.4);
+  transition: all 0.2s;
+}
+
+.checkin-float-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 4rpx 16rpx rgba(37, 99, 235, 0.3);
+}
+
+/* 历史记录区域 */
+.history-section {
+  background: #fff;
+  border-radius: 32rpx 32rpx 0 0;
+  margin-top: -32rpx;
+  position: relative;
+  z-index: 2;
+  min-height: calc(100vh - 600rpx);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 40rpx 32rpx 24rpx;
+  border-bottom: 1rpx solid #F1F5F9;
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.section-count {
+  font-size: 26rpx;
+  color: #64748B;
+}
+
+.history-list {
+  height: calc(100vh - 700rpx);
+}
+
+.history-items {
+  padding: 16rpx 32rpx;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #F1F5F9;
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.item-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 96rpx;
+  height: 96rpx;
+  background: #F1F5F9;
+  border-radius: 16rpx;
+}
+
+.date-day {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #1E293B;
+  line-height: 1;
+}
+
+.date-month {
+  font-size: 22rpx;
+  color: #64748B;
+  margin-top: 4rpx;
+}
+
+.item-content {
+  flex: 1;
+}
+
+.item-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1E293B;
+  display: block;
+}
+
+.item-detail {
+  font-size: 26rpx;
+  color: #64748B;
+  display: block;
+  margin-top: 4rpx;
+}
+
+.item-badge {
+  width: 48rpx;
+  height: 48rpx;
+  background: #D1FAE5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10B981;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.bottom-spacer {
+  height: 160rpx;
+}
+
+/* 操作菜单 */
+.action-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0);
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.action-sheet.show {
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.action-sheet-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #F8FAFC;
+  border-radius: 32rpx 32rpx 0 0;
+  padding: 16rpx 0 calc(32rpx + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+.action-sheet.show .action-sheet-content {
+  transform: translateY(0);
+}
+
+.action-list {
+  background: #fff;
+  border-radius: 24rpx;
+  margin: 0 16rpx 16rpx;
+  overflow: hidden;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 32rpx;
+  border-bottom: 1rpx solid #F1F5F9;
+}
+
+.action-item:last-child {
+  border-bottom: none;
+}
+
+.action-item:active {
+  background: #F8FAFC;
+}
+
+.action-item.delete .action-text {
+  color: #EF4444;
+}
+
+.action-icon {
+  font-size: 40rpx;
+}
+
+.action-text {
+  font-size: 32rpx;
+  color: #1E293B;
+}
+
+.action-cancel {
+  background: #fff;
+  border-radius: 24rpx;
+  margin: 0 16rpx;
+  padding: 32rpx;
+  text-align: center;
+}
+
+.action-cancel text {
+  font-size: 32rpx;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.action-cancel:active {
+  background: #F8FAFC;
+}

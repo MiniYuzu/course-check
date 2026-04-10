@@ -1,0 +1,37 @@
+<!-- Tab Bar 组件 - 活力版（4 Tab） -->
+<view class="tab-bar">
+  <view
+    class="tab-item {{current === 'home' ? 'active' : ''}}"
+    data-tab="home"
+    bindtap="onTabTap"
+  >
+    <text class="tab-icon">🏠</text>
+    <text class="tab-text">首页</text>
+  </view>
+  <view
+    class="tab-item {{current === 'stats' ? 'active' : ''}}"
+    data-tab="stats"
+    bindtap="onTabTap"
+  >
+    <text class="tab-icon">📊</text>
+    <text class="tab-text">统计</text>
+  </view>
+  <view
+    class="tab-item {{current === 'achieve' ? 'active' : ''}}"
+    data-tab="achieve"
+    bindtap="onTabTap"
+  >
+    <text class="tab-icon">⭐</text>
+    <text class="tab-text">成就</text>
+  </view>
+  <view
+    class="tab-item {{current === 'profile' ? 'active' : ''}}"
+    data-tab="profile"
+    bindtap="onTabTap"
+  >
+    <text class="tab-icon">👤</text>
+    <text class="tab-text">我的</text>
+  </view>
+</view>
+<!-- 安全区域填充 -->
+<view class="safe-area-bottom" wx:if="{{safeArea}}" />
