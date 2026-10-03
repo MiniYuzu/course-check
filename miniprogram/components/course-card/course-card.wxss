@@ -1,162 +1,166 @@
-/* 课程卡片组件样式 - 活力版 */
-
 .course-card {
   position: relative;
-  border-radius: 20rpx;
-  padding: 30rpx;
-  margin-bottom: 24rpx;
-  color: #fff;
   overflow: hidden;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
-  transition: transform 0.2s;
+  box-sizing: border-box;
+  padding: 40rpx;
+  margin-bottom: 32rpx;
+  border-radius: 40rpx;
+  background: #64748B;
+  color: #FFFFFF;
+  font-size: 28rpx;
+  line-height: 1.5;
+  box-shadow: 0 20rpx 44rpx rgba(37, 89, 138, 0.09);
 }
 
-.course-card:active {
-  transform: scale(0.98);
-}
-
-/* 渐变背景 - 游泳课 */
-.course-card.swim {
-  background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%);
-}
-
-/* 渐变背景 - 钢琴课 */
-.course-card.piano {
-  background: linear-gradient(135deg, #F59E0B 0%, #EF4444 100%);
-}
-
-/* 渐变背景 - 英语课 */
-.course-card.english {
-  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-}
-
-/* 装饰圆圈 */
-.decoration-circle {
+.course-card::after {
+  content: '';
   position: absolute;
-  top: -100rpx;
-  right: -60rpx;
   width: 300rpx;
   height: 300rpx;
-  background: rgba(255, 255, 255, 0.1);
+  top: -180rpx;
+  right: -100rpx;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  pointer-events: none;
 }
 
-/* 头部区域 */
 .card-header {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  margin-bottom: 24rpx;
   position: relative;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  margin-bottom: 32rpx;
 }
 
 .course-icon {
-  width: 96rpx;
-  height: 96rpx;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 28rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 28rpx;
+  background: rgba(255, 255, 255, 0.25);
   font-size: 48rpx;
-  backdrop-filter: blur(10px);
 }
 
 .course-info {
   flex: 1;
+  min-width: 0;
 }
 
 .course-name {
+  display: block;
   font-size: 36rpx;
   font-weight: 700;
-  display: block;
+  overflow-wrap: break-word;
 }
 
 .course-schedule {
-  font-size: 26rpx;
-  opacity: 0.9;
   display: block;
   margin-top: 4rpx;
+  font-size: 26rpx;
+  opacity: 0.9;
+  overflow-wrap: break-word;
 }
 
-/* 进度区域 */
-.progress-section {
+.chevron {
+  flex-shrink: 0;
+  font-size: 40rpx;
+  opacity: 0.8;
+}
+
+.progress-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24rpx;
-  position: relative;
-  z-index: 1;
 }
 
-.progress-main {
+.lesson-count {
   display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
   align-items: baseline;
-  gap: 8rpx;
 }
 
-.progress-count {
-  font-size: 56rpx;
+.count {
+  font-size: 62rpx;
   font-weight: 800;
+  line-height: 1.2;
 }
 
-.progress-unit {
-  font-size: 28rpx;
-  font-weight: 500;
-  opacity: 0.9;
+.count-label {
+  font-size: 24rpx;
 }
 
-.progress-bar {
+.progress-track {
+  flex-shrink: 0;
   width: 160rpx;
   height: 12rpx;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 6rpx;
   overflow: hidden;
+  border-radius: 6rpx;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .progress-fill {
   height: 100%;
-  background: rgba(255, 255, 255, 0.9);
   border-radius: 6rpx;
-  transition: width 0.3s ease;
+  background: rgba(255, 255, 255, 0.9);
 }
 
-/* 打卡按钮 */
+.remaining {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.overdrawn {
+  display: block;
+  margin-top: 16rpx;
+  padding: 12rpx 16rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 24rpx;
+}
+
 .checkin-btn {
+  box-sizing: border-box;
   width: 100%;
-  height: 96rpx;
-  background: #fff;
-  color: #1E293B;
-  border: none;
+  min-height: 96rpx;
+  margin: 32rpx 0 0;
+  padding: 24rpx 16rpx;
   border-radius: 24rpx;
+  background: #FFFFFF;
+  color: #1E293B;
   font-size: 32rpx;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.15);
-  transition: all 0.2s;
+  line-height: 1.5;
+  box-shadow: 0 8rpx 24rpx rgba(30, 41, 59, 0.15);
 }
 
 .checkin-btn::after {
-  border: none;
-}
-
-.checkin-btn:active {
-  transform: translateY(2rpx);
-  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
-}
-
-.checkin-btn.completed {
-  background: #10B981;
-  color: #fff;
+  border: 0;
 }
 
 .checkin-btn[disabled] {
-  background: #10B981;
-  color: #fff;
+  background: rgba(255, 255, 255, 0.75);
+  color: #475569;
   opacity: 1;
+  box-shadow: none;
+}
+
+.checkin-btn.completed,
+.checkin-btn.completed[disabled] {
+  background: #10B981;
+  color: #FFFFFF;
+}
+
+.status {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 24rpx;
 }

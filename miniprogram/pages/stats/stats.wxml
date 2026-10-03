@@ -1,104 +1,36 @@
-<!-- 统计页 - 活力版 -->
-<view class="page">
-  <!-- 顶部 -->
-  <view class="header">
-    <view class="header-bg-decoration"></view>
-    <text class="header-title">📊 学习统计</text>
-    <text class="header-subtitle">记录成长的每一步</text>
+<view class="stats-page">
+  <view class="hero stats-hero">
+    <text class="hero-sparkle" aria-hidden="true">✦</text><text class="hero-title">每一节，都算数。</text><text class="hero-subtitle">把坚持留在记录里</text>
+    <view class="hero-metrics"><view class="hero-metric"><text class="hero-number">{{hasData ? summary.totalLessons : '—'}}</text><text class="hero-label">累计已上 / 节</text></view><view class="hero-metric"><text class="hero-number">{{hasData ? summary.activeCourses : '—'}}</text><text class="hero-label">正在上的课程</text></view></view>
+    <text class="hero-tiny">{{hasData ? '含初始已上 ' + summary.initialLessons + ' 节 · 归档历史仍计入累计' : '连接后读取完整课时账本'}}</text>
   </view>
-
-  <!-- 内容区 -->
-  <scroll-view class="content" scroll-y enhanced show-scrollbar>
-    <!-- 总览卡片 -->
-    <view class="overview-card">
-      <view class="overview-grid">
-        <view class="overview-item">
-          <text class="overview-value">{{totalStats.courses}}</text>
-          <text class="overview-label">课程总数</text>
-        </view>
-        <view class="overview-item">
-          <text class="overview-value">{{totalStats.checkins}}</text>
-          <text class="overview-label">累计打卡</text>
-        </view>
-        <view class="overview-item">
-          <text class="overview-value">{{totalStats.streak}}</text>
-          <text class="overview-label">连续打卡</text>
-        </view>
-        <view class="overview-item">
-          <text class="overview-value">{{totalStats.thisMonth}}</text>
-          <text class="overview-label">本月课时</text>
-        </view>
+  <view class="page-content">
+    <sync-status />
+    <view wx:if="{{error}}" class="error-box">{{error}}<button class="secondary" bindtap="loadStats">重新连接</button></view>
+    <view wx:if="{{offline}}" class="warning">{{offline}}。以下为本机保留的记录，可能还不是最新数据。</view>
+    <view wx:if="{{isLoading && !hasData}}" class="loading">正在读取完整记录…</view>
+    <block wx:if="{{ready && hasData}}">
+      <view class="panel week-panel">
+        <view class="section-row"><text class="section-title">最近 7 天</text><text class="week-total">共 {{weekTotal}} 节</text></view>
+        <text class="chart-hint">每天一小步，成长看得见 · 不随月份切换</text>
+        <view class="week-chart"><view wx:for="{{summary.week}}" wx:key="date" class="chart-column {{item.isToday ? 'today' : ''}}"><text class="bar-count">{{item.count}}</text><view class="bar-track"><view class="bar {{item.isToday ? 'today' : ''}}" style="height: {{item.height}}%"></view></view><text class="bar-label">{{item.label}}</text></view></view>
       </view>
-    </view>
-
-    <!-- 周打卡趋势 -->
-    <view class="section">
-      <view class="section-header">
-        <text class="section-title">近7天打卡</text>
+      <view class="panel month-panel">
+        <view class="section-row"><text class="section-title">月度记录</text><picker id="stats-month" mode="date" fields="month" start="1900-01-01" end="{{today}}" value="{{month}}" bindchange="onMonthChange"><view class="picker">{{month}} ▾</view></picker></view>
+        <view class="month-metrics"><view class="metric"><text class="metric-label">实际记录课时</text><view class="metric-number">{{summary.monthLessons}}<text>节</text></view></view><view class="metric orange"><text class="metric-label">有课的天数</text><view class="metric-number">{{activeDays}}<text>天</text></view></view></view>
+        <text class="hint">只按上课日期统计，不含没有具体日期的初始课时。</text>
       </view>
-      <view class="week-chart">
-        <view class="chart-bar" wx:for="{{weekData}}" wx:key="day">
-          <view class="bar-fill" style="height: {{item.percent}}%"></view>
-          <text class="bar-day">{{item.day}}</text>
-          <text class="bar-count">{{item.count}}</text>
-        </view>
+      <view class="panel distribution-panel">
+        <view class="section-row"><text class="section-title">各课程记录</text><text class="muted">{{month}}</text></view>
+        <view wx:if="{{!monthCourses.length}}" class="empty">这个月还没有上课记录。</view>
+        <button wx:for="{{monthCourses}}" wx:key="_id" class="distribution-row {{item.type}}" data-id="{{item._id}}" bindtap="onCourseTap"><view class="mini-emoji {{item.type}}">{{item.icon || '📖'}}</view><view class="grow"><text class="record-name">{{item.name}} <text wx:if="{{item.isDeleted}}" class="archive-label">已归档</text></text><view class="track"><view class="track-fill" style="width: {{item.monthPercent}}%"></view></view></view><view class="course-amount">{{item.monthCount}} <text>节 ›</text></view></button>
       </view>
-    </view>
-
-    <!-- 课程排行 -->
-    <view class="section">
-      <view class="section-header">
-        <text class="section-title">课程排行</text>
+      <view class="panel records-panel">
+        <view class="section-row"><text class="section-title">上课明细</text><text class="muted">{{monthRecords.length}} 条</text></view>
+        <view wx:if="{{!monthRecords.length}}" class="empty">选择其他月份查看历史。</view>
+        <button wx:for="{{visibleRecords}}" wx:key="_id" class="row record-row detail-record" data-id="{{item.courseId}}" bindtap="onCourseTap"><view class="mini-emoji">{{item.icon || '📖'}}</view><view class="grow"><text class="record-name">{{item.courseName}}</text><text class="record-meta">{{item.date}}{{item.archived ? ' · 已归档' : ''}}</text></view><text class="badge">1 节</text></button>
+        <button wx:if="{{visibleRecords.length < monthRecords.length}}" class="text-button more-button" bindtap="onLoadMore">再显示 30 条</button>
       </view>
-      <view class="rank-list">
-        <view class="rank-item" wx:for="{{courseRanks}}" wx:key="id">
-          <text class="rank-num">{{index + 1}}</text>
-          <view class="rank-icon {{item.type}}">
-            <text>{{item.icon}}</text>
-          </view>
-          <view class="rank-info">
-            <text class="rank-name">{{item.name}}</text>
-            <view class="rank-progress">
-              <view class="progress-bar">
-                <view class="progress-fill" style="width: {{item.progress}}%"></view>
-              </view>
-              <text class="progress-text">{{item.count}}节</text>
-            </view>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 月度统计 -->
-    <view class="section">
-      <view class="section-header">
-        <text class="section-title">月度统计</text>
-        <picker mode="selector" range="{{months}}" value="{{selectedMonthIndex}}" bindchange="onMonthChange">
-          <view class="month-picker">
-            {{months[selectedMonthIndex]}}
-            <text class="picker-arrow">▼</text>
-          </view>
-        </picker>
-      </view>
-      <view class="month-stats">
-        <view class="month-stat-item">
-          <text class="month-stat-value">{{monthStats.total}}</text>
-          <text class="month-stat-label">总课时</text>
-        </view>
-        <view class="month-stat-item">
-          <text class="month-stat-value">{{monthStats.activeDays}}</text>
-          <text class="month-stat-label">活跃天数</text>
-        </view>
-        <view class="month-stat-item">
-          <text class="month-stat-value">{{monthStats.avgPerWeek}}</text>
-          <text class="month-stat-label">周均课时</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="bottom-spacer"></view>
-  </scroll-view>
-
-  <!-- Tab Bar -->
-  <tab-bar current="stats" bind:change="onTabChange" />
+    </block>
+  </view>
 </view>

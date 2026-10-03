@@ -1,116 +1,31 @@
-<!-- 添加/编辑课程页 -->
-<view class="page">
-  <!-- 顶部导航 -->
-  <view class="header">
-    <view class="back-btn" bindtap="onBack">
-      <text>←</text>
+<view class="form-page">
+  <view class="hero form-hero"><text class="hero-title">{{isEdit ? '编辑课程' : '添加新课程'}}</text><text class="hero-subtitle">{{isEdit ? '把课程安排，更新得刚刚好。' : '第一笔，记下新的成长计划。'}}</text></view>
+  <view class="page-content form-content">
+    <view wx:if="{{error}}" class="error-box">{{error}}<button class="secondary" bindtap="loadCourse">重新连接</button></view>
+    <view wx:if="{{!ready && !error}}" class="loading">正在确认课程与账号…</view>
+    <view class="panel form-section">
+      <text class="small-heading">01 / 课程信息</text>
+      <view class="field"><text class="field-label">课程名称</text><input id="course-name" class="input" placeholder="例如：周末游泳课" placeholder-class="input-placeholder" value="{{course.name}}" bindinput="onNameInput" maxlength="50" disabled="{{!ready || saving || saved}}" /></view>
+      <text class="field-label">课程类型</text>
+      <view class="type-grid">
+        <button wx:for="{{courseTypes}}" wx:key="type" class="type-item {{selectedType === item.type ? 'selected' : ''}}" data-type="{{item.type}}" bindtap="onSelectType" disabled="{{!ready || saving || saved}}"><text class="type-icon">{{item.icon}}</text><text>{{item.name}}</text><text wx:if="{{selectedType === item.type}}" class="type-check">✓</text></button>
+      </view>
     </view>
-    <text class="header-title">{{isEdit ? '编辑课程' : '添加课程'}}</text>
-    <view class="header-right"></view>
+    <view class="panel form-section">
+      <text class="small-heading">02 / 课时账本</text>
+      <view class="number-grid">
+        <view><text class="field-label">总课时 <text class="optional">可选</text></text><view class="number-input"><input id="total-lessons" class="input" type="number" placeholder="不设上限" placeholder-class="input-placeholder number-placeholder" value="{{course.totalLessons}}" bindinput="onTotalLessonsInput" maxlength="6" disabled="{{!ready || saving || saved}}" /><text class="number-unit">节</text></view></view>
+        <view><text class="field-label">开始使用前已上</text><view class="number-input"><input id="initial-lessons" class="input" type="number" placeholder="0" placeholder-class="input-placeholder number-placeholder" value="{{course.initialLessons}}" bindinput="onInitialLessonsInput" maxlength="6" disabled="{{!ready || saving || saved}}" /><text class="number-unit">节</text></view></view>
+      </view>
+      <view class="form-total-note"><text class="info-icon">ⓘ</text><view class="grow"><text>开始使用前已上，只计累计、不计月统计。</text><text class="form-note-emphasis">已逐条补记的课时，请勿重复填写。</text></view></view>
+      <text class="hint">总课时留空或填 0 表示不设上限；续课时增加总课时。</text>
+    </view>
+    <view class="panel form-section">
+      <text class="small-heading">03 / 上课备忘</text>
+      <view class="field"><text class="field-label">固定上课时间 <text class="optional">可选</text></text><input id="course-schedule" class="input" placeholder="例如：每周六 10:00" placeholder-class="input-placeholder" value="{{course.schedule}}" bindinput="onScheduleInput" maxlength="100" disabled="{{!ready || saving || saved}}" /><text class="hint">仅作为备忘显示，不自动发送提醒。</text></view>
+      <view class="field"><text class="field-label">备注 <text class="optional">可选</text></text><textarea id="course-notes" class="textarea" placeholder="老师、教室，或其他想记住的事" placeholder-class="input-placeholder" value="{{course.notes}}" bindinput="onNotesInput" maxlength="500" disabled="{{!ready || saving || saved}}" adjust-position="{{true}}" cursor-spacing="100" /></view>
+    </view>
+    <text class="under-note">先安全保存在本机，网络正常时自动同步到当前微信账户。</text>
   </view>
-
-  <!-- 表单 -->
-  <scroll-view class="form-container" scroll-y enhanced show-scrollbar>
-    <!-- 图标选择 -->
-    <view class="form-section">
-      <text class="section-label">选择图标</text>
-      <view class="icon-grid">
-        <view
-          class="icon-item {{selectedType === item.type ? 'selected' : ''}}"
-          wx:for="{{courseTypes}}"
-          wx:key="type"
-          bindtap="onSelectType"
-          data-type="{{item.type}}"
-        >
-          <text class="icon-emoji">{{item.icon}}</text>
-          <text class="icon-name">{{item.name}}</text>
-        </view>
-      </view>
-    </view>
-
-    <!-- 基本信息 -->
-    <view class="form-section">
-      <text class="section-label">基本信息</text>
-
-      <view class="input-group">
-        <text class="input-label">课程名称</text>
-        <input
-          class="input-field"
-          placeholder="例如：游泳课、钢琴课"
-          value="{{course.name}}"
-          bindinput="onNameInput"
-          maxlength="20"
-        />
-      </view>
-
-      <view class="input-group">
-        <text class="input-label">总课时（可选）</text>
-        <input
-          class="input-field"
-          placeholder="例如：48"
-          value="{{course.totalLessons}}"
-          bindinput="onTotalLessonsInput"
-          type="number"
-        />
-        <text class="input-hint">设置总课时可以查看完成进度</text>
-      </view>
-
-      <view class="input-group">
-        <text class="input-label">上课时间</text>
-        <input
-          class="input-field"
-          placeholder="例如：每周二、四 18:00"
-          value="{{course.schedule}}"
-          bindinput="onScheduleInput"
-          maxlength="50"
-        />
-      </view>
-
-      <view class="input-group">
-        <text class="input-label">备注（可选）</text>
-        <textarea
-          class="textarea-field"
-          placeholder="记录其他信息，如老师姓名、教室位置等"
-          value="{{course.notes}}"
-          bindinput="onNotesInput"
-          maxlength="200"
-        />
-      </view>
-    </view>
-
-    <!-- 高级选项 -->
-    <view class="form-section">
-      <view class="section-header" bindtap="toggleAdvanced">
-        <text class="section-label">高级选项</text>
-        <text class="toggle-icon">{{showAdvanced ? '▼' : '▶'}}</text>
-      </view>
-
-      <view class="advanced-options {{showAdvanced ? 'show' : ''}}">
-        <view class="input-group">
-          <text class="input-label">提醒设置</text>
-          <switch checked="{{course.reminder}}" bindchange="onReminderChange" color="#2563EB" />
-        </view>
-
-        <view class="input-group" wx:if="{{course.reminder}}">
-          <text class="input-label">提前提醒时间</text>
-          <picker mode="selector" range="{{reminderOptions}}" value="{{reminderIndex}}" bindchange="onReminderTimeChange">
-            <view class="picker-field">
-              {{reminderOptions[reminderIndex]}}
-              <text class="picker-arrow">›</text>
-            </view>
-          </picker>
-        </view>
-      </view>
-    </view>
-
-    <!-- 底部占位 -->
-    <view class="bottom-spacer"></view>
-  </scroll-view>
-
-  <!-- 保存按钮 -->
-  <view class="footer">
-    <button class="save-btn {{canSave ? '' : 'disabled'}}" bindtap="onSave">
-      {{isEdit ? '保存修改' : '添加课程'}}
-    </button>
-  </view>
+  <view class="save-bar"><button id="save-course" class="primary save-button" bindtap="onSave" loading="{{saving}}" disabled="{{!ready || !canSave || saving || saved}}">{{isEdit ? '保存修改' : '添加课程'}}</button></view>
 </view>

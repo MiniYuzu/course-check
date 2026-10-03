@@ -1,7 +1,7 @@
 {
+  "navigationBarTitleText": "我的账本",
+  "enablePullDownRefresh": true,
   "usingComponents": {
-    "tab-bar": "/components/tab-bar/tab-bar",
     "sync-status": "/components/sync-status/sync-status"
-  },
-  "navigationStyle": "custom"
+  }
 }

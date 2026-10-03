@@ -1,0 +1,82 @@
+// Calendar dates are always interpreted in China time.
+function today(now = new Date()) {
+  return new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 10);
+}
+function addDays(date, amount) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + amount);
+  return value.toISOString().slice(0, 10);
+}
+function validateDate(date, maximum = today()) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) throw new Error('请选择有效日期');
+  const parsed = new Date(`${date}T00:00:00Z`);
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date || date < '1900-01-01') throw new Error('日期不存在');
+  if (date > maximum) throw new Error('不能记录未来的课程');
+  return date;
+}
+function lessonCount(value) {
+  if (value === '' || value === undefined || value === null) return 0;
+  if (!/^\d+$/.test(String(value)) || !Number.isSafeInteger(Number(value))) throw new Error('课时必须是非负整数');
+  return Number(value);
+}
+function normalizeCheckinNotes(value) {
+  const notes = String(value || '').replace(/\s+/g, ' ').trim();
+  if (notes.length > 60) throw new Error('课后备注最多填写 60 个字，请精简后保存');
+  return notes;
+}
+function uniqueCheckins(checkins) {
+  const records = new Map();
+  checkins.forEach(item => records.set(`${item.courseId}|${item.date}`, item));
+  return [...records.values()].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(a.courseId).localeCompare(String(b.courseId)));
+}
+function isDatedRecord(item, date = today()) {
+  if (typeof item.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(item.date) || item.date.startsWith('0000') || item.date > date) return false;
+  const parsed = new Date(`${item.date}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === item.date;
+}
+function monthOptions(date = today(), count = 24) {
+  const [year, month] = date.split('-').map(Number);
+  return Array.from({ length: count }, (_, index) => {
+    const value = new Date(Date.UTC(year, month - 1 - index, 1)).toISOString().slice(0, 7);
+    return { value, label: `${value.slice(0, 4)} 年 ${Number(value.slice(5))} 月` };
+  });
+}
+function summarize(courses, checkins, month = today().slice(0, 7), date = today()) {
+  const records = uniqueCheckins(checkins);
+  const dated = records.filter(item => isDatedRecord(item, date));
+  const decorated = courses.map(course => {
+    const items = records.filter(item => item.courseId === course._id);
+    const initialLessons = Number(course.initialLessons) || 0;
+    const totalLessons = Number(course.totalLessons) || 0;
+    const completedCount = initialLessons + items.length;
+    return {
+      ...course, initialLessons, totalLessons, completedCount, recordCount: items.length,
+      monthCount: items.filter(item => isDatedRecord(item, date) && item.date.startsWith(month)).length,
+      remainingCount: totalLessons ? Math.max(totalLessons - completedCount, 0) : null,
+      overdrawnCount: totalLessons ? Math.max(completedCount - totalLessons, 0) : 0,
+      progress: totalLessons ? Math.min(100, Math.round(completedCount / totalLessons * 100)) : null,
+      isCheckedIn: items.some(item => item.date === date)
+    };
+  });
+  const dates = new Set(dated.map(item => item.date));
+  let cursor = dates.has(date) ? date : addDays(date, -1);
+  let streakDays = 0;
+  while (dates.has(cursor)) { streakDays++; cursor = addDays(cursor, -1); }
+  const week = Array.from({ length: 7 }, (_, index) => {
+    const day = addDays(date, index - 6);
+    return { date: day, label: day.slice(5).replace('-', '/'), count: records.filter(item => item.date === day).length };
+  });
+  const peak = Math.max(1, ...week.map(item => item.count));
+  week.forEach(item => { item.height = Math.round(item.count / peak * 100); });
+  return {
+    courses: decorated, checkins: records,
+    activeCourses: courses.filter(course => !course.isDeleted).length,
+      totalLessons: records.length + decorated.reduce((total, course) => total + course.initialLessons, 0),
+    recordedLessons: records.length,
+    initialLessons: decorated.reduce((total, course) => total + course.initialLessons, 0),
+    monthLessons: dated.filter(item => item.date.startsWith(month)).length,
+    todayLessons: records.filter(item => item.date === date).length,
+    streakDays, week
+  };
+}
+module.exports = { today, addDays, validateDate, lessonCount, normalizeCheckinNotes, uniqueCheckins, monthOptions, summarize, isDatedRecord };

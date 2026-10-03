@@ -1,4 +1,4 @@
-<!-- Tab Bar 组件 - 活力版（4 Tab） -->
+<!-- Tab Bar 组件 - 活力版 -->
 <view class="tab-bar">
   <view
     class="tab-item {{current === 'home' ? 'active' : ''}}"
@@ -15,14 +15,6 @@
   >
     <text class="tab-icon">📊</text>
     <text class="tab-text">统计</text>
-  </view>
-  <view
-    class="tab-item {{current === 'achieve' ? 'active' : ''}}"
-    data-tab="achieve"
-    bindtap="onTabTap"
-  >
-    <text class="tab-icon">⭐</text>
-    <text class="tab-text">成就</text>
   </view>
   <view
     class="tab-item {{current === 'profile' ? 'active' : ''}}"

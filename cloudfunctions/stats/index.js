@@ -10,12 +10,50 @@ cloud.init({
 const db = cloud.database();
 const _ = db.command;
 
+function formatLocalDate(date = new Date()) {
+  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function shiftDate(date, days) {
+  return new Date(new Date(`${date}T00:00:00.000Z`).getTime() + days * 86400000).toISOString().slice(0, 10);
+}
+
+async function getAll(collection, condition) {
+  const rows = [];
+  while (true) {
+    const { data } = await db.collection(collection).where(condition).orderBy('_id', 'asc')
+      .skip(rows.length).limit(100).get();
+    rows.push(...data);
+    if (data.length < 100) return rows;
+  }
+}
+
+function realDatedCheckins(checkins) {
+  const today = formatLocalDate();
+  return checkins.filter(({ date }) => {
+    if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date.startsWith('0000') || date > today) return false;
+    const parsed = new Date(`${date}T00:00:00.000Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
+  });
+}
+
+// 旧版可能留下同课同日多个随机 ID；只在计算时去重，原始历史不变。
+function uniqueCheckins(checkins) {
+  const records = new Map();
+  checkins.forEach(checkin => records.set(JSON.stringify([checkin.courseId, checkin.date]), checkin));
+  return [...records.values()];
+}
+
+async function getDatedCheckins(condition) {
+  return uniqueCheckins(realDatedCheckins(await getAll('checkins', condition)));
+}
+
 // 验证用户权限
-async function verifyAuth(context) {
+async function verifyAuth(event) {
   const wxContext = cloud.getWXContext();
   const OPENID = wxContext.OPENID;
 
-  if (!OPENID) {
+  if (!OPENID || (event.expectedOpenid !== undefined && event.expectedOpenid !== OPENID)) {
     throw new Error('Unauthorized');
   }
 
@@ -24,58 +62,30 @@ async function verifyAuth(context) {
 
 // 获取总览统计
 async function getOverview(openid) {
-  // 课程总数
-  const { total: totalCourses } = await db.collection('courses')
-    .where({
-      _openid: openid,
-      isDeleted: _.neq(true)
-    })
-    .count();
-
-  // 打卡总数
-  const { total: totalCheckins } = await db.collection('checkins')
-    .where({ _openid: openid })
-    .count();
-
-  // 获取用户信息（连续打卡天数）
-  const { data: users } = await db.collection('users')
-    .where({ _openid: openid })
-    .limit(1)
-    .get();
-
-  const userInfo = users[0] || {};
+  const courses = await getAll('courses', { _openid: openid });
+  const checkins = uniqueCheckins(await getAll('checkins', { _openid: openid }));
+  const datedCheckins = realDatedCheckins(checkins);
+  const totalCourses = courses.filter(course => course.isDeleted !== true).length;
+  // 初始已上课时没有日期，只加入累计总数，不分摊到某天、某周或某月。
+  const totalCheckins = checkins.length + courses.reduce((total, course) => total + (course.initialLessons || 0), 0);
 
   // 本周打卡数
   const weekStart = getWeekStart();
-  const { total: weekCheckins } = await db.collection('checkins')
-    .where({
-      _openid: openid,
-      date: _.gte(weekStart)
-    })
-    .count();
+  const today = formatLocalDate();
+  const weekCheckins = datedCheckins.filter(checkin => checkin.date >= weekStart).length;
 
   // 本月打卡数
   const monthStart = getMonthStart();
-  const { total: monthCheckins } = await db.collection('checkins')
-    .where({
-      _openid: openid,
-      date: _.gte(monthStart)
-    })
-    .count();
+  const monthCheckins = datedCheckins.filter(checkin => checkin.date >= monthStart).length;
 
   // 今日是否打卡
-  const today = new Date().toISOString().split('T')[0];
-  const { total: todayCount } = await db.collection('checkins')
-    .where({
-      _openid: openid,
-      date: today
-    })
-    .count();
+  const todayCount = datedCheckins.filter(checkin => checkin.date === today).length;
+  const streaks = calculateStreaks([...new Set(datedCheckins.map(checkin => checkin.date))].sort());
 
   return {
     totalCourses,
     totalCheckins,
-    streakDays: userInfo.streakDays || 0,
+    streakDays: streaks.current,
     weekCheckins,
     monthCheckins,
     todayCheckins: todayCount,
@@ -92,12 +102,7 @@ async function getWeeklyStats(openid, event) {
   const endDate = weekDates[6];
 
   // 获取本周所有打卡记录
-  const { data: checkins } = await db.collection('checkins')
-    .where({
-      _openid: openid,
-      date: _.gte(startDate).and(_.lte(endDate))
-    })
-    .get();
+  const checkins = await getDatedCheckins({ _openid: openid, date: _.gte(startDate).and(_.lte(endDate)) });
 
   // 按日期统计
   const dailyStats = weekDates.map(date => {
@@ -121,22 +126,13 @@ async function getWeeklyStats(openid, event) {
 // 获取课程排行
 async function getCourseRanking(openid) {
   // 获取所有课程
-  const { data: courses } = await db.collection('courses')
-    .where({
-      _openid: openid,
-      isDeleted: _.neq(true)
-    })
-    .get();
+  const courses = await getAll('courses', { _openid: openid });
 
   // 获取每个课程的打卡数
   const ranking = await Promise.all(
     courses.map(async (course) => {
-      const { total } = await db.collection('checkins')
-        .where({
-          courseId: course._id,
-          _openid: openid
-        })
-        .count();
+      const checkins = uniqueCheckins(await getAll('checkins', { courseId: course._id, _openid: openid }));
+      const recordCount = checkins.length;
 
       // 最近打卡时间
       const { data: recentCheckins } = await db.collection('checkins')
@@ -149,6 +145,7 @@ async function getCourseRanking(openid) {
         .get();
 
       const lastCheckinAt = recentCheckins.length > 0 ? recentCheckins[0].date : null;
+      const total = recordCount + (course.initialLessons || 0);
 
       // 完成进度
       const progress = course.totalLessons > 0
@@ -176,18 +173,17 @@ async function getCourseRanking(openid) {
 
 // 获取月度统计
 async function getMonthlyStats(openid, event) {
-  const { year = new Date().getFullYear(), month = new Date().getMonth() + 1 } = event;
+  const today = formatLocalDate();
+  const { year = Number(today.slice(0, 4)), month = Number(today.slice(5, 7)) } = event;
+  if (!Number.isInteger(year) || year < 1000 || year > 9999 || !Number.isInteger(month) || month < 1 || month > 12) {
+    throw new Error('Invalid month');
+  }
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = getMonthEnd(year, month);
 
   // 当月打卡记录
-  const { data: checkins } = await db.collection('checkins')
-    .where({
-      _openid: openid,
-      date: _.gte(monthStart).and(_.lte(monthEnd))
-    })
-    .get();
+  const checkins = await getDatedCheckins({ _openid: openid, date: _.gte(monthStart).and(_.lte(monthEnd)) });
 
   // 按课程统计
   const courseStats = {};
@@ -202,9 +198,14 @@ async function getMonthlyStats(openid, event) {
   const courseIds = Object.keys(courseStats);
   const courses = await Promise.all(
     courseIds.map(async (id) => {
-      const { data: courseData } = await db.collection('courses')
-        .doc(id)
+      const { data: courses } = await db.collection('courses')
+        .where({
+          _id: id,
+          _openid: openid
+        })
+        .limit(1)
         .get();
+      const courseData = courses[0] || {};
       return {
         ...courseData,
         monthCheckins: courseStats[id]
@@ -235,17 +236,12 @@ async function getMonthlyStats(openid, event) {
 // 生成热力图数据
 async function getHeatmapData(openid, event) {
   const { days = 365 } = event; // 默认最近一年
+  const rangeDays = Math.min(Math.max(Number(days) || 365, 1), 366);
 
-  const endDate = new Date().toISOString().split('T')[0];
-  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-    .toISOString().split('T')[0];
+  const endDate = formatLocalDate();
+  const startDateStr = shiftDate(endDate, -rangeDays + 1);
 
-  const { data: checkins } = await db.collection('checkins')
-    .where({
-      _openid: openid,
-      date: _.gte(startDate).and(_.lte(endDate))
-    })
-    .get();
+  const checkins = await getDatedCheckins({ _openid: openid, date: _.gte(startDateStr).and(_.lte(endDate)) });
 
   // 按日期聚合
   const dateMap = {};
@@ -267,7 +263,7 @@ async function getHeatmapData(openid, event) {
   const streaks = calculateStreaks(Object.keys(dateMap).sort());
 
   return {
-    startDate,
+    startDate: startDateStr,
     endDate,
     heatmapData,
     totalDays: Object.keys(dateMap).length,
@@ -280,30 +276,25 @@ async function getHeatmapData(openid, event) {
 // 获取趋势数据
 async function getTrends(openid, event) {
   const { weeks = 12 } = event; // 默认最近12周
+  if (!Number.isSafeInteger(weeks) || weeks < 1 || weeks > 52) {
+    throw new Error('Invalid weeks: expected an integer from 1 to 52');
+  }
 
   const trends = [];
-  const now = new Date();
 
   for (let i = weeks - 1; i >= 0; i--) {
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay() - i * 7);
-    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekStartStr = shiftDate(getWeekStart(), -i * 7);
+    const weekEndStr = shiftDate(weekStartStr, 6);
 
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const weekEndStr = weekEnd.toISOString().split('T')[0];
-
-    const { total } = await db.collection('checkins')
-      .where({
-        _openid: openid,
-        date: _.gte(weekStartStr).and(_.lte(weekEndStr))
-      })
-      .count();
+    const checkins = await getDatedCheckins({
+      _openid: openid,
+      date: _.gte(weekStartStr).and(_.lte(weekEndStr))
+    });
 
     trends.push({
       weekStart: weekStartStr,
       weekEnd: weekEndStr,
-      count: total
+      count: checkins.length
     });
   }
 
@@ -319,53 +310,36 @@ async function getTrends(openid, event) {
 // ========== 工具函数 ==========
 
 function getWeekStart() {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day;
-  const sunday = new Date(now.setDate(diff));
-  return sunday.toISOString().split('T')[0];
+  const today = formatLocalDate();
+  return shiftDate(today, -getDayOfWeek(today));
 }
 
 function getMonthStart() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  return `${formatLocalDate().slice(0, 7)}-01`;
 }
 
 function getMonthEnd(year, month) {
-  const lastDay = new Date(year, month, 0).getDate();
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 }
 
 function getWeekDates(offset = 0) {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day + offset * 7;
-  const sunday = new Date(now.setDate(diff));
-
-  const dates = [];
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(sunday);
-    date.setDate(sunday.getDate() + i);
-    dates.push(date.toISOString().split('T')[0]);
-  }
-  return dates;
+  return Array.from({ length: 7 }, (_, day) => shiftDate(getWeekStart(), -offset * 7 + day));
 }
 
 function getDayOfWeek(dateStr) {
   const date = new Date(dateStr);
-  return date.getDay();
+  return date.getUTCDay();
 }
 
 function getDayName(dateStr) {
   const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   const date = new Date(dateStr);
-  return days[date.getDay()];
+  return days[date.getUTCDay()];
 }
 
 function generateCalendar(year, month, checkins) {
-  const firstDay = new Date(year, month - 1, 1);
-  const lastDay = new Date(year, month, 0);
-  const daysInMonth = lastDay.getDate();
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
 
   const calendar = [];
   for (let day = 1; day <= daysInMonth; day++) {
@@ -396,13 +370,8 @@ function calculateStreaks(dates) {
     return { current: 0, longest: 0 };
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const todayStr = today.toISOString().split('T')[0];
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().split('T')[0];
+  const todayStr = formatLocalDate();
+  const yesterdayStr = shiftDate(todayStr, -1);
 
   // 计算当前连续天数
   let currentStreak = 0;
@@ -415,11 +384,10 @@ function calculateStreaks(dates) {
   }
 
   if (currentStreak > 0) {
-    let checkDate = new Date(dates.includes(todayStr) ? today : yesterday);
+    let checkDate = dates.includes(todayStr) ? todayStr : yesterdayStr;
     while (true) {
-      checkDate.setDate(checkDate.getDate() - 1);
-      const checkStr = checkDate.toISOString().split('T')[0];
-      if (dates.includes(checkStr)) {
+      checkDate = shiftDate(checkDate, -1);
+      if (dates.includes(checkDate)) {
         currentStreak++;
       } else {
         break;
@@ -448,10 +416,11 @@ function calculateStreaks(dates) {
 }
 
 // 主入口
-exports.main = async (event, context) => {
+exports.main = async (event = {}, context) => {
   try {
-    const openid = await verifyAuth(context);
+    const openid = await verifyAuth(event);
     const { action } = event;
+    const payload = event.data || event;
 
     let result;
     switch (action) {
@@ -459,19 +428,19 @@ exports.main = async (event, context) => {
         result = await getOverview(openid);
         break;
       case 'weekly':
-        result = await getWeeklyStats(openid, event);
+        result = await getWeeklyStats(openid, payload);
         break;
       case 'ranking':
         result = await getCourseRanking(openid);
         break;
       case 'monthly':
-        result = await getMonthlyStats(openid, event);
+        result = await getMonthlyStats(openid, payload);
         break;
       case 'heatmap':
-        result = await getHeatmapData(openid, event);
+        result = await getHeatmapData(openid, payload);
         break;
       case 'trends':
-        result = await getTrends(openid, event);
+        result = await getTrends(openid, payload);
         break;
       default:
         // 默认返回总览
@@ -488,7 +457,7 @@ exports.main = async (event, context) => {
   } catch (error) {
     console.error('Stats function error:', error);
 
-    const errorCode = error.message === 'Unauthorized' ? 401 : 500;
+    const errorCode = error.message === 'Unauthorized' ? 401 : error.message.includes('Invalid') ? 400 : 500;
 
     return {
       success: false,

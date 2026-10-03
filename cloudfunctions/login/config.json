@@ -1,7 +1,5 @@
 {
   "permissions": {
-    "openapi": [
-      "wxacode.get"
-    ]
+    "openapi": []
   }
 }

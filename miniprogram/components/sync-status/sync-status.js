@@ -1,93 +1,32 @@
-// 同步状态组件
 const { SyncQueue } = require('../../utils/sync-queue');
-
+const storage = require('../../utils/storage');
 Component({
-  /**
-   * 组件数据
-   */
-  data: {
-    status: 'synced', // synced | syncing | pending | failed
-    count: 0,
-    visible: false,
-    icon: '✓',
-    text: '已同步'
-  },
-
-  /**
-   * 生命周期
-   */
+  data: { status: 'synced', text: '', visible: false, busy: false },
   lifetimes: {
     attached() {
+      this._onQueueChange = () => this.updateStatus();
+      SyncQueue.onChange(this._onQueueChange);
       this.updateStatus();
-
-      // 监听队列变化
-      SyncQueue.onChange(() => {
-        this.updateStatus();
-      });
-
-      // 定期更新状态
-      this.updateInterval = setInterval(() => {
-        this.updateStatus();
-      }, 5000);
     },
-
-    detached() {
-      if (this.updateInterval) {
-        clearInterval(this.updateInterval);
-      }
-    }
+    detached() { this._detached = true; SyncQueue.offChange(this._onQueueChange); }
   },
-
-  /**
-   * 组件方法
-   */
   methods: {
     async updateStatus() {
       const stats = await SyncQueue.getStats();
-
-      let status = 'synced';
-      let icon = '✓';
-      let text = '已同步';
-      let visible = false;
-
-      if (stats.failed > 0) {
-        status = 'failed';
-        icon = '✗';
-        text = '同步失败';
-        visible = true;
-      } else if (stats.syncing > 0) {
-        status = 'syncing';
-        text = '正在同步...';
-        visible = true;
-      } else if (stats.pending > 0) {
-        status = 'pending';
-        icon = '⏳';
-        text = `${stats.pending}条待同步`;
-        visible = true;
-      }
-
-      this.setData({
-        status,
-        icon,
-        text,
-        count: stats.failed || stats.pending,
-        visible
-      });
+      if (this._detached) return;
+      const session = storage.getSession();
+      const status = stats.failed ? 'failed' : stats.syncing ? 'syncing' : stats.pending ? 'pending' : 'synced';
+      const text = status === 'failed' ? `${stats.total} 项修改未完成同步 · 点击重试` : status === 'syncing' ? '正在同步，记录已保存在本机…' : status === 'pending' ? `${stats.total} 项修改待同步 · 点击重试` : '';
+      this.setData({ status, text, visible: !!session && stats.total > 0 });
     },
-
     async onTap() {
-      if (this.data.status === 'failed' || this.data.status === 'pending') {
-        this.setData({ status: 'syncing', text: '正在同步...' });
-
-        try {
-          await SyncQueue.sync();
-          wx.showToast({ title: '同步完成', icon: 'success' });
-        } catch (error) {
-          wx.showToast({ title: '同步失败', icon: 'none' });
-        }
-
-        this.updateStatus();
-      }
+      if (this.data.busy || this.data.status === 'syncing') return;
+      this.setData({ busy: true });
+      try {
+        const result = await SyncQueue.sync();
+        wx.showToast({ title: result.success ? '同步完成' : (result.message || '仍有记录未同步'), icon: result.success ? 'success' : 'none' });
+      } catch (error) { wx.showToast({ title: error.message || '同步失败，记录仍保留', icon: 'none' }); }
+      finally { this.setData({ busy: false }); await this.updateStatus(); }
     }
   }
 });

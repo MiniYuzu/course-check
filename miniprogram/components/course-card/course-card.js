@@ -1,105 +1,29 @@
-// 课程卡片组件 - 活力版
+const { getCourseTypeConfig } = require('../../utils/util');
+
 Component({
-  /**
-   * 组件属性
-   */
   properties: {
-    // 课程ID
-    courseId: {
-      type: String,
-      value: ''
-    },
-    // 课程类型（决定渐变色）
-    type: {
-      type: String,
-      value: 'swim' // swim, piano, english
-    },
-    // 图标
-    icon: {
-      type: String,
-      value: '🏊'
-    },
-    // 课程名称
-    name: {
-      type: String,
-      value: '课程名称'
-    },
-    // 上课时间
-    schedule: {
-      type: String,
-      value: '每周二、四'
-    },
-    // 已完成课时
-    completedCount: {
-      type: Number,
-      value: 0
-    },
-    // 总课时
-    totalCount: {
-      type: Number,
-      value: 20
-    },
-    // 今日是否已打卡
-    isCheckedIn: {
-      type: Boolean,
-      value: false
-    }
+    courseId: { type: String, value: '' }, type: { type: String, value: 'other' }, icon: { type: String, value: '📖' },
+    name: { type: String, value: '' }, schedule: { type: String, value: '' },
+    completedCount: { type: Number, value: 0 }, totalCount: { type: Number, value: 0 },
+    isCheckedIn: { type: Boolean, value: false }, syncStatus: { type: String, value: '' }, busy: { type: Boolean, value: false }, disabled: { type: Boolean, value: false }
   },
-
-  /**
-   * 组件数据
-   */
-  data: {
-    progressPercent: 0
-  },
-
-  /**
-   * 生命周期
-   */
-  lifetimes: {
-    attached() {
-      this.calculateProgress()
-    }
-  },
-
-  /**
-   * 数据监听器
-   */
+  data: { progressPercent: 0, remaining: 0, overdrawn: 0, courseGradient: getCourseTypeConfig('other').gradient },
+  lifetimes: { attached() { this.calculateProgress(); this.updateTheme(); } },
   observers: {
-    'completedCount, totalCount': function(completed, total) {
-      this.calculateProgress()
-    }
+    'completedCount,totalCount': function () { this.calculateProgress(); },
+    type() { this.updateTheme(); }
   },
-
-  /**
-   * 组件方法
-   */
   methods: {
-    // 计算进度百分比
+    updateTheme() { this.setData({ courseGradient: getCourseTypeConfig(this.properties.type || 'other').gradient }); },
     calculateProgress() {
-      const { completedCount, totalCount } = this.properties
-      let percent = 0
-      if (totalCount > 0) {
-        percent = Math.round((completedCount / totalCount) * 100)
-      }
-      this.setData({ progressPercent: percent })
+      const { completedCount, totalCount } = this.properties;
+      this.setData({ progressPercent: totalCount ? Math.min(100, Math.round(completedCount / totalCount * 100)) : 0, remaining: Math.max(0, totalCount - completedCount), overdrawn: totalCount ? Math.max(0, completedCount - totalCount) : 0 });
     },
-
-    // 点击卡片
-    onCardTap() {
-      const { courseId } = this.properties
-      this.triggerEvent('cardtap', { courseId })
-    },
-
-    // 点击打卡按钮
-    onCheckinTap(e) {
-      // 阻止冒泡，避免触发卡片点击
-      e.stopPropagation()
-
-      const { courseId, isCheckedIn } = this.properties
-      if (isCheckedIn) return
-
-      this.triggerEvent('checkin', { courseId })
+    onCardTap() { this.triggerEvent('cardtap', { courseId: this.properties.courseId }); },
+    onCheckinTap() {
+      // WXML catchtap stops native propagation; WeChat events are not DOM events.
+      if (this.properties.isCheckedIn || this.properties.busy || this.properties.disabled) return;
+      this.triggerEvent('checkin', { courseId: this.properties.courseId });
     }
   }
-})
+});

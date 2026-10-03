@@ -1,342 +1,172 @@
-// 同步队列模块 - 离线数据同步
-const { CONFIG } = require('./config');
-const { ErrorHandler } = require('./error-handler');
+const storage = require('./storage');
+const { generateId } = require('./util');
+const { summarize } = require('./records');
+let running = null;
+let runtime = null;
 
-// 回调函数存储
-const listeners = [];
+function effectiveQueue(state = storage.read()) {
+  return state.queue.map(item => runtime && runtime.key === storage.getSession()?.key && runtime.id === item._id
+    ? { ...item, status: runtime.status, lastError: runtime.error || item.lastError }
+    : item);
+}
 
-const SyncQueue = {
-  /**
-   * 添加操作到队列
-   * @param {string} type - 操作类型: checkin | update_course | delete_course | add_course
-   * @param {Object} payload - 操作数据
-   * @returns {Promise<string>} queueItemId
-   */
-  async enqueue(type, payload) {
-    const item = {
-      _id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      type,
-      status: 'pending',
-      payload,
-      retryCount: 0,
-      lastError: null,
-      createdAt: Date.now(),
-      syncedAt: null
-    };
-
-    const queue = await this.getQueue();
-    queue.push(item);
-    await this.saveQueue(queue);
-
-    // 通知监听器
-    this.notifyListeners();
-
-    // 触发同步（如果在线）
-    this.triggerSync();
-
-    return item._id;
-  },
-
-  /**
-   * 获取当前队列
-   * @returns {Promise<Array>} 队列数组
-   */
-  async getQueue() {
-    try {
-      const { data } = await wx.getStorage({ key: CONFIG.STORAGE_KEYS.SYNC_QUEUE });
-      return data || [];
-    } catch (e) {
-      return [];
+function applyOperation(state, item, result) {
+  const payload = item.payload;
+  if (item.type === 'add_course') {
+    const course = result || payload;
+    if (!state.courses.some(value => value._id === course._id || value.operationId === item._id)) state.courses.unshift({ ...course });
+  } else if (item.type === 'update_course') {
+    state.courses = state.courses.map(course => course._id === payload.courseId ? { ...course, ...payload.updates } : course);
+  } else if (item.type === 'archive_course' || item.type === 'restore_course') {
+    state.courses = state.courses.map(course => course._id === payload.courseId ? { ...course, isDeleted: item.type === 'archive_course' } : course);
+  } else if (item.type === 'checkin') {
+    if (!state.checkins.some(record => record.courseId === payload.courseId && record.date === payload.date)) state.checkins.push({ ...payload, ...(result || {}), _syncStatus: result ? 'synced' : item.status });
+  } else if (item.type === 'update_checkin_notes') {
+    state.checkins = state.checkins.map(record => record.courseId === payload.courseId && record.date === payload.date ? {
+      ...record, notes: payload.notes,
+      _syncStatus: result ? 'synced' : record._syncStatus === 'failed' || item.status === 'failed' ? 'failed' : item.status
+    } : record);
+  } else if (item.type === 'cancel_checkin') {
+    state.checkins = state.checkins.filter(record => record.courseId !== payload.courseId || record.date !== payload.date);
+  } else throw new Error(`不支持的同步操作：${item.type}`);
+}
+function view(state = storage.read()) {
+  const projected = { courses: state.courses.map(item => ({ ...item })), checkins: state.checkins.map(item => ({ ...item })) };
+  effectiveQueue(state).forEach(item => {
+    applyOperation(projected, item);
+    const id = item.payload.courseId || item.payload._id;
+    const course = projected.courses.find(value => value._id === (state.aliases[id] || id));
+    if (course) course._syncStatus = item.status === 'failed' || course._syncStatus === 'failed' ? 'failed' : item.status;
+  });
+  return { ...summarize(projected.courses, projected.checkins), hasSnapshot: state.hasSnapshot, lastRefresh: state.lastRefresh, lastSync: state.lastSync };
+}
+async function call(name, data, session = name === 'login' ? null : storage.requireSession()) {
+  if (session && storage.getSession()?.key !== session.key) throw new Error('登录身份已变化，原账户数据仍保留');
+  // 预期身份仅作串账号保护；云端授权仍使用可信微信上下文。
+  const { result } = await wx.cloud.callFunction({ name, data: session ? { ...data, expectedOpenid: session.openid } : data });
+  if (session && storage.getSession()?.key !== session.key) throw new Error('登录身份已变化，原账户数据仍保留');
+  if (!result || !result.success) {
+    if (session && result && result.code === 401) {
+      storage.deactivate();
+      throw new Error('登录身份已变化，请重新连接；原账户数据仍保留');
     }
-  },
-
-  /**
-   * 保存队列
-   * @param {Array} queue - 队列数组
-   */
-  async saveQueue(queue) {
-    await wx.setStorage({
-      key: CONFIG.STORAGE_KEYS.SYNC_QUEUE,
-      data: queue
-    });
-  },
-
-  /**
-   * 获取队列统计
-   * @returns {Promise<Object>} 统计信息
-   */
-  async getStats() {
-    const queue = await this.getQueue();
-    return {
-      total: queue.length,
-      pending: queue.filter(i => i.status === 'pending').length,
-      syncing: queue.filter(i => i.status === 'syncing').length,
-      synced: queue.filter(i => i.status === 'synced').length,
-      failed: queue.filter(i => i.status === 'failed').length
-    };
-  },
-
-  /**
-   * 执行同步
-   * @returns {Promise<Object>} 同步结果
-   */
-  async sync() {
-    const queue = await this.getQueue();
-    const pending = queue.filter(item => item.status === 'pending' || item.status === 'failed');
-
-    if (pending.length === 0) {
-      return { success: true, synced: 0, failed: 0 };
+    const error = new Error(result && result.message || '云端未确认，请重试');
+    error.code = result && result.code;
+    throw error;
+  }
+  return result.data;
+}
+function request(item, session) {
+  const payload = item.payload;
+  switch (item.type) {
+    case 'add_course': return call('course', { action: 'add', data: { ...payload, operationId: item._id } }, session);
+    case 'update_course': return call('course', { action: 'update', courseId: payload.courseId, updates: payload.updates }, session);
+    case 'archive_course': return call('course', { action: 'archive', courseId: payload.courseId }, session);
+    case 'restore_course': return call('course', { action: 'restore', courseId: payload.courseId }, session);
+    case 'checkin': return call('checkin', { action: 'checkin', data: payload }, session);
+    case 'update_checkin_notes': return call('checkin', { action: 'updateNotes', data: payload }, session);
+    case 'cancel_checkin': return call('checkin', { action: 'cancel', data: payload }, session);
+    default: throw new Error('未知同步操作，已保留数据');
+  }
+}
+function acknowledge(state, item, result) {
+  if (item.type === 'add_course') {
+    if (!result || !result._id) throw new Error('云端未返回课程编号，已保留待同步数据');
+    const localId = item.payload._id;
+    const remoteId = result._id;
+    state.aliases[localId] = remoteId;
+    state.courses = state.courses.filter(course => course._id !== localId);
+    state.checkins.forEach(record => { if (record.courseId === localId) record.courseId = remoteId; });
+    state.queue.forEach(operation => { if (operation.payload.courseId === localId) operation.payload.courseId = remoteId; });
+  }
+  applyOperation(state, item, result);
+  state.queue = state.queue.filter(operation => operation._id !== item._id);
+  state.cloudRevision++;
+  state.lastSync = Date.now();
+}
+async function performSync() {
+  const session = storage.getSession();
+  if (!session) return { success: false, synced: 0, failed: 0, message: '请先联网登录' };
+  let synced = 0;
+  try {
+    if (!storage.read(session.key).queue.length) return { success: true, synced, failed: 0 };
+    const identity = await call('login', {});
+    if (storage.getSession()?.key !== session.key) throw new Error('当前账户已切换，原账户同步已停止');
+    if (identity.openid !== session.openid) {
+      storage.deactivate();
+      throw new Error('登录身份已变化，请重新进入；原账户数据仍保留');
     }
-
-    let synced = 0;
-    let failed = 0;
-
-    for (const item of pending) {
+    while (storage.getSession()?.key === session.key) {
+      const item = storage.read(session.key).queue[0];
+      if (!item) { runtime = null; storage.notify(); return { success: true, synced, failed: 0 }; }
+      // In-flight is runtime state; the durable operation remains replayable after a crash.
+      runtime = { key: session.key, id: item._id, status: 'syncing' };
+      storage.notify();
       try {
-        await this.processItem(item);
+        // Even a write with a lost response invalidates an in-flight list snapshot.
+        storage.update(state => { state.cloudRevision++; }, session.key);
+        const result = await request(item, session);
+        storage.update(state => acknowledge(state, item, result), session.key);
         synced++;
       } catch (error) {
-        failed++;
-        console.error('Sync item failed:', item._id, error);
+        runtime = { key: session.key, id: item._id, status: 'failed', error: error.message || error.errMsg || '同步失败' };
+        try {
+          storage.update(state => {
+            const failed = state.queue.find(operation => operation._id === item._id);
+            if (failed) { failed.status = 'failed'; failed.lastError = runtime.error; failed.retryCount++; }
+          }, session.key);
+        } catch (storageError) { runtime.error = `本机存储失败，原操作仍保留：${storageError.message}`; }
+        storage.notify();
+        // Later operations may depend on this one. Never leapfrog a failure.
+        return { success: false, synced, failed: 1, message: error.message || '同步失败，请重试' };
       }
     }
-
-    // 通知监听器
-    this.notifyListeners();
-
-    return { success: failed === 0, synced, failed };
-  },
-
-  /**
-   * 处理单个队列项
-   * @param {Object} item - 队列项
-   */
-  async processItem(item) {
-    // 更新状态为同步中
-    item.status = 'syncing';
-    await this.updateItem(item);
-
-    try {
-      await this.executeOperation(item);
-
-      // 同步成功
-      item.status = 'synced';
-      item.syncedAt = Date.now();
-      await this.updateItem(item);
-
-    } catch (error) {
-      item.retryCount++;
-      item.lastError = error.message || 'Unknown error';
-
-      if (item.retryCount >= CONFIG.SYNC.MAX_RETRIES) {
-        item.status = 'failed';
-      } else {
-        item.status = 'pending';
+    return { success: false, synced, failed: 0, message: '登录身份已变化，请重新进入' };
+  } catch (error) {
+    return { success: false, synced, failed: 1, message: error.message || '暂时无法同步' };
+  }
+}
+const SyncQueue = {
+  async enqueue(type, payload) {
+    storage.requireSession();
+    const item = { _id: generateId(), type, payload, status: 'pending', retryCount: 0, createdAt: Date.now(), lastError: null };
+    storage.update(state => {
+      const head = effectiveQueue(state)[0];
+      if (type === 'restore_course' && head &&
+          ['checkin', 'update_course'].includes(head.type) && head.payload.courseId === payload.courseId &&
+          state.courses.some(course => course._id === payload.courseId && course.isDeleted)) {
+        // 用户已明确确认恢复：先解除失败记录的归档前提，不丢弃或重排原操作。
+        // 队尾仍保留恢复意图，防止中间已排队的归档/撤销改变最终结果。
+        state.queue.unshift({ ...item, _id: generateId() });
       }
-
-      await this.updateItem(item);
-      throw error;
-    }
-  },
-
-  /**
-   * 执行具体操作
-   * @param {Object} item - 队列项
-   */
-  async executeOperation(item) {
-    switch (item.type) {
-      case 'checkin':
-        // 调用 checkin 云函数
-        const { result: checkinResult } = await wx.cloud.callFunction({
-          name: 'checkin',
-          data: {
-            action: 'checkin',
-            courseId: item.payload.courseId,
-            date: item.payload.date,
-            notes: item.payload.notes,
-            mood: item.payload.mood,
-            photos: item.payload.photos
-          }
-        });
-
-        if (!checkinResult.success) {
-          // 如果已经打卡，视为成功
-          if (checkinResult.code === 409) {
-            return { success: true, message: 'Already checked in' };
-          }
-          throw new Error(checkinResult.message);
-        }
-        return checkinResult.data;
-
-      case 'cancel_checkin':
-        // 调用取消打卡
-        const { result: cancelResult } = await wx.cloud.callFunction({
-          name: 'checkin',
-          data: {
-            action: 'cancel',
-            courseId: item.payload.courseId,
-            date: item.payload.date
-          }
-        });
-
-        if (!cancelResult.success && cancelResult.code !== 404) {
-          throw new Error(cancelResult.message);
-        }
-        return cancelResult.data;
-
-      case 'add_course':
-        // 调用 course 云函数
-        const { result: addResult } = await wx.cloud.callFunction({
-          name: 'course',
-          data: {
-            action: 'add',
-            name: item.payload.name,
-            type: item.payload.type,
-            icon: item.payload.icon,
-            schedule: item.payload.schedule,
-            totalLessons: item.payload.totalLessons,
-            notes: item.payload.notes,
-            reminder: item.payload.reminder,
-            location: item.payload.location,
-            teacher: item.payload.teacher
-          }
-        });
-
-        if (!addResult.success) {
-          throw new Error(addResult.message);
-        }
-        return addResult.data;
-
-      case 'update_course':
-        // 调用 course 云函数
-        const { result: updateResult } = await wx.cloud.callFunction({
-          name: 'course',
-          data: {
-            action: 'update',
-            courseId: item.payload.courseId,
-            updates: item.payload.updates
-          }
-        });
-
-        if (!updateResult.success) {
-          throw new Error(updateResult.message);
-        }
-        return updateResult.data;
-
-      case 'delete_course':
-        // 调用 course 云函数
-        const { result: deleteResult } = await wx.cloud.callFunction({
-          name: 'course',
-          data: {
-            action: 'delete',
-            courseId: item.payload.courseId,
-            hardDelete: item.payload.hardDelete
-          }
-        });
-
-        if (!deleteResult.success) {
-          throw new Error(deleteResult.message);
-        }
-        return deleteResult.data;
-
-      default:
-        throw new Error(`Unknown operation type: ${item.type}`);
-    }
-  },
-
-  /**
-   * 更新队列项
-   * @param {Object} item - 队列项
-   */
-  async updateItem(item) {
-    const queue = await this.getQueue();
-    const index = queue.findIndex(i => i._id === item._id);
-
-    if (index !== -1) {
-      queue[index] = item;
-      await this.saveQueue(queue);
-    }
-  },
-
-  /**
-   * 删除已同步的队列项
-   * @param {number} maxAge - 最大保留时间（毫秒），默认7天
-   */
-  async cleanup(maxAge = 7 * 24 * 60 * 60 * 1000) {
-    const queue = await this.getQueue();
-    const now = Date.now();
-
-    const filtered = queue.filter(item => {
-      // 保留 pending 和 syncing 状态的
-      if (item.status === 'pending' || item.status === 'syncing') {
-        return true;
-      }
-
-      // 保留 synced 7天内的
-      if (item.status === 'synced' && item.syncedAt) {
-        return (now - item.syncedAt) < maxAge;
-      }
-
-      // 保留 failed 的
-      if (item.status === 'failed') {
-        return true;
-      }
-
-      return false;
+      state.queue.push(item);
     });
-
-    await this.saveQueue(filtered);
+    this.triggerSync();
+    return item._id;
   },
-
-  /**
-   * 触发同步（如果在线）
-   */
+  async getQueue() { return effectiveQueue(); },
+  async getStats() {
+    const state = storage.read();
+    const queue = effectiveQueue(state);
+    return {
+      total: queue.length,
+      pending: queue.filter(item => item.status === 'pending').length,
+      syncing: queue.filter(item => item.status === 'syncing').length,
+      failed: queue.filter(item => item.status === 'failed').length,
+      synced: 0, lastSync: state.lastSync,
+      lastError: (queue.find(item => item.lastError) || {}).lastError || ''
+    };
+  },
+  sync() {
+    if (!running) running = performSync().finally(() => { running = null; });
+    return running;
+  },
   async triggerSync() {
     try {
-      const networkType = await wx.getNetworkType();
-
-      if (networkType.networkType !== 'none') {
-        // 在线，执行同步
-        this.sync().catch(err => {
-          console.error('Background sync failed:', err);
-        });
-      }
-    } catch (e) {
-      console.error('Check network failed:', e);
-    }
+      const { networkType } = await wx.getNetworkType();
+      if (networkType !== 'none') await this.sync();
+    } catch (error) { console.error('Sync deferred', error.message); }
   },
-
-  /**
-   * 添加状态变化监听器
-   * @param {Function} callback - 回调函数
-   */
-  onChange(callback) {
-    listeners.push(callback);
-  },
-
-  /**
-   * 移除状态变化监听器
-   * @param {Function} callback - 回调函数
-   */
-  offChange(callback) {
-    const index = listeners.indexOf(callback);
-    if (index !== -1) {
-      listeners.splice(index, 1);
-    }
-  },
-
-  /**
-   * 通知所有监听器
-   */
-  notifyListeners() {
-    listeners.forEach(callback => {
-      try {
-        callback();
-      } catch (e) {
-        console.error('SyncQueue listener error:', e);
-      }
-    });
-  }
+  onChange: storage.onChange, offChange: storage.offChange
 };
-
-module.exports = { SyncQueue };
+module.exports = { SyncQueue, view, call };

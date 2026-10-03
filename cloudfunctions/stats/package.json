@@ -4,6 +4,6 @@
   "description": "统计功能云函数",
   "main": "index.js",
   "dependencies": {
-    "wx-server-sdk": "latest"
+    "wx-server-sdk": "4.0.2"
   }
 }

@@ -1,50 +1,25 @@
-<!-- 首页 - 活力版 -->
-<view class="page">
-  <!-- 顶部渐变区域 -->
-  <view class="header-section">
-    <view class="header-bg-decoration">
-      <text class="sparkle">✨</text>
-    </view>
-    <view class="header-content">
-      <text class="header-title">课程打卡 🎯</text>
-      <text class="header-subtitle">记录宝贝的每一次进步</text>
-      <view class="streak-badge" wx:if="{{streakDays > 0}}">
-        <text class="streak-icon">🔥</text>
-        <text class="streak-text">连续打卡 {{streakDays}} 天</text>
-      </view>
-    </view>
+<view class="home-page">
+  <view class="hero">
+    <text class="hero-sparkle" aria-hidden="true">✦</text>
+    <text class="hero-title">课程打卡 🎯</text>
+    <text class="hero-subtitle">记录宝贝的每一次进步</text>
+    <text wx:if="{{hasData}}" class="hero-summary">今日已记 {{todayLessons}} 节</text>
+    <text wx:else class="hero-summary">{{isLoading ? '正在读取课程…' : '等待连接后读取课程'}}</text>
   </view>
-
-  <!-- 课程列表 -->
-  <scroll-view class="course-list" scroll-y enhanced show-scrollbar>
-    <view class="list-container">
-      <!-- 课程卡片列表 -->
-      <course-card
-        wx:for="{{courses}}"
-        wx:key="id"
-        course-id="{{item.id}}"
-        type="{{item.type}}"
-        icon="{{item.icon}}"
-        name="{{item.name}}"
-        schedule="{{item.schedule}}"
-        completed-count="{{item.completedCount}}"
-        total-count="{{item.totalCount}}"
-        is-checked-in="{{item.isCheckedIn}}"
-        bind:cardtap="onCourseTap"
-        bind:checkin="onCheckin"
-      />
-
-      <!-- 添加课程按钮 -->
-      <view class="add-card" bindtap="onAddCourse">
-        <view class="add-icon">+</view>
-        <text class="add-text">添加新课程</text>
-      </view>
-
-      <!-- 底部占位 -->
-      <view class="bottom-spacer" />
+  <view class="home-content">
+    <sync-status />
+    <view wx:if="{{error}}" class="error-box"><text>{{error}}</text><button class="secondary" bindtap="loadCourses">重新连接</button></view>
+    <view wx:if="{{offline}}" class="warning">{{offline}}。本机修改会保留，联网后可重试同步。</view>
+    <view wx:if="{{isLoading && !courses.length}}" class="loading">正在读取课程…</view>
+    <view wx:if="{{!isLoading && ready && !courses.length && !error}}" class="panel empty">
+      <text class="empty-title">从第一门课程开始</text>
+      <text>填好课程和课时，之后点一下就能记课。</text>
     </view>
-  </scroll-view>
-
-  <!-- Tab Bar -->
-  <tab-bar current="home" bind:change="onTabChange" />
+    <course-card wx:for="{{courses}}" wx:key="_id" course-id="{{item._id}}" type="{{item.type}}" icon="{{item.icon}}" name="{{item.name}}" schedule="{{item.schedule}}" completed-count="{{item.completedCount}}" total-count="{{item.totalLessons}}" is-checked-in="{{item.isCheckedIn}}" sync-status="{{item._syncStatus}}" busy="{{busyId === item._id}}" disabled="{{!ready}}" bind:cardtap="onCourseTap" bind:checkin="onCheckin" />
+    <button wx:if="{{ready}}" class="add-course" bindtap="onAddCourse">
+      <text class="add-icon">＋</text>
+      <text>添加新课程</text>
+    </button>
+    <text wx:if="{{courses.length}}" class="hint">点课程卡片可补记、撤销或查看历史。每门课每天记 1 节。</text>
+  </view>
 </view>

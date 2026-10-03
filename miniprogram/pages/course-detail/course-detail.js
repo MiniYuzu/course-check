@@ -1,219 +1,149 @@
-// 课程详情页
 const { db } = require('../../utils/db');
-const { formatDate, getToday, showModal, showSuccess, showError, showLoading, hideLoading } = require('../../utils/util');
-const { getCourseTypeConfig } = require('../../utils/util');
+const storage = require('../../utils/storage');
+const { today, isDatedRecord, normalizeCheckinNotes } = require('../../utils/records');
+const { showModal, getCourseTypeConfig } = require('../../utils/util');
+const pageState = require('../../utils/page-state');
+
+const draftKey = (courseId, date) => JSON.stringify([courseId, date]);
+function timelineRecord(record) {
+  const valid = isDatedRecord(record);
+  return { ...record, day: valid ? record.date.slice(8) : '—', weekday: valid ? ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][new Date(record.date + 'T00:00:00Z').getUTCDay()] : '待核对', dateLabel: valid ? record.date.replace(/-/g, '.') : String(record.date || '日期待核对') };
+}
 
 Page({
   data: {
-    courseId: '',
-    course: {},
-    courseType: 'swim',
-    stats: {
-      total: 0,
-      thisMonth: 0
-    },
-    progressPercent: 0,
-    checkins: [],
-    isLoading: true,
-    isRefreshing: false,
-    isCheckedInToday: false,
-    showActionSheet: false
+    courseId: '', course: null, courseGradient: getCourseTypeConfig('other').gradient, records: [], visibleRecords: [], visibleCount: 30, month: '', selectedDate: '', today: '',
+    isLoading: true, ready: false, error: '', offline: '', busy: false, hasSelectedRecord: false, selectedRecord: null,
+    noteDraft: '', noteOpen: false, noteModalOpen: false, modalCourseId: '', modalCourseName: '', modalDate: '', modalDateLabel: '', modalNotes: ''
   },
-
-  onLoad(options) {
-    if (options.id) {
-      this.setData({ courseId: options.id });
-      this.loadCourseDetail();
-    } else {
-      showError('课程ID不存在');
-      wx.navigateBack();
-    }
+  onLoad(options) { this.setData({ courseId: options.id || '', selectedDate: today(), today: today() }); pageState.watch(this); },
+  onShow() { return this.loadCourse(); },
+  onUnload() { pageState.unwatch(this); },
+  onPullDownRefresh() { return this.loadCourse(); },
+  loadCourse() { return pageState.load(this); },
+  draftFor(courseId, date, record) {
+    const account = storage.getSession();
+    const accountKey = account ? account.key : '';
+    if (this._draftAccount !== accountKey) { this._draftAccount = accountKey; this._drafts = {}; this.setData({ noteModalOpen: false }); }
+    const aliases = storage.read().aliases;
+    // A local course ID can become a cloud ID while the user is still typing.
+    Object.keys(this._drafts).forEach(key => {
+      const draft = this._drafts[key], canonical = aliases[draft.courseId] || draft.courseId;
+      if (canonical !== draft.courseId) { draft.courseId = canonical; this._drafts[draftKey(canonical, draft.date)] = draft; delete this._drafts[key]; }
+    });
+    const key = draftKey(courseId, date);
+    if (!this._drafts[key]) this._drafts[key] = { courseId, date, text: '', open: false, dirty: false };
+    const draft = this._drafts[key];
+    if (!draft.dirty) draft.text = record ? String(record.notes || '') : '';
+    return draft;
   },
-
-  onShow() {
-    // 刷新数据
-    if (this.data.courseId) {
-      this.loadCourseDetail();
-    }
+  clearDraft(courseId, date) {
+    if (!this._drafts) return;
+    const aliases = storage.read().aliases;
+    Object.keys(this._drafts).forEach(key => {
+      const draft = this._drafts[key];
+      if ((aliases[draft.courseId] || draft.courseId) === (aliases[courseId] || courseId) && draft.date === date) delete this._drafts[key];
+    });
   },
-
-  // 加载课程详情
-  async loadCourseDetail() {
-    try {
-      showLoading();
-
-      // 获取课程信息
-      const course = await db.getCourse(this.data.courseId);
-
-      // 获取打卡记录
-      const checkins = await db.getCheckins(this.data.courseId);
-
-      // 处理打卡记录
-      const processedCheckins = checkins.map((item, index) => {
-        const date = new Date(item.date);
-        return {
-          ...item,
-          day: date.getDate(),
-          month: date.getMonth() + 1,
-          number: checkins.length - index
-        };
-      });
-
-      // 检查今天是否已打卡
-      const today = getToday();
-      const isCheckedInToday = checkins.some(c => c.date === today);
-
-      // 计算统计数据
-      const thisMonth = checkins.filter(c => {
-        const date = new Date(c.date);
-        const now = new Date();
-        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-      }).length;
-
-      // 获取课程类型配置
-      const typeConfig = getCourseTypeConfig(course.type || 'other');
-
-      // 计算进度
-      let progressPercent = 0;
-      if (course.totalLessons && course.totalLessons > 0) {
-        progressPercent = Math.round((checkins.length / course.totalLessons) * 100);
-      }
-
-      this.setData({
-        course,
-        courseType: typeConfig.type,
-        stats: {
-          total: checkins.length,
-          thisMonth
-        },
-        progressPercent,
-        checkins: processedCheckins,
-        isCheckedInToday,
-        isLoading: false
-      });
-
-    } catch (error) {
-      console.error('Load course detail failed:', error);
-      showError('加载失败');
-    } finally {
-      hideLoading();
-      this.setData({ isRefreshing: false });
-    }
+  render() {
+    const snapshot = db.snapshot();
+    const aliases = storage.read().aliases;
+    const courseId = aliases[this.data.courseId] || this.data.courseId;
+    const course = snapshot.courses.find(item => item._id === courseId) || null;
+    const history = snapshot.checkins.filter(item => item.courseId === courseId);
+    const selectedRecord = history.find(item => item.date === this.data.selectedDate) || null;
+    const records = history.filter(item => !this.data.month || (isDatedRecord(item) && item.date.startsWith(this.data.month))).map(timelineRecord);
+    const draft = this.draftFor(courseId, this.data.selectedDate, selectedRecord);
+    this.setData({ courseId, course, courseGradient: getCourseTypeConfig((course && course.type) || 'other').gradient, records, visibleRecords: records.slice(0, this.data.visibleCount), today: today(), selectedRecord, hasSelectedRecord: !!selectedRecord, noteDraft: draft.text, noteOpen: draft.open });
   },
-
-  // 下拉刷新
-  onRefresh() {
-    this.setData({ isRefreshing: true });
-    this.loadCourseDetail();
+  onDateChange(event) { if (this.data.busy) return; this.setData({ selectedDate: event.detail.value }); this.render(); },
+  onMonthChange(event) { this.setData({ month: event.detail.value, visibleCount: 30 }); this.render(); },
+  onAllMonths() { this.setData({ month: '', visibleCount: 30 }); this.render(); },
+  onLoadMore() { this.setData({ visibleCount: this.data.visibleCount + 30 }); this.render(); },
+  onToggleNotes() {
+    if (this.data.busy) return;
+    const draft = this.draftFor(this.data.courseId, this.data.selectedDate, this.data.selectedRecord);
+    draft.open = !draft.open; this.setData({ noteOpen: draft.open });
   },
-
-  // 打卡
+  onNotesInput(event) {
+    if (this.data.busy) return;
+    const draft = this.draftFor(this.data.courseId, this.data.selectedDate, this.data.selectedRecord);
+    draft.text = event.detail.value; draft.dirty = true;
+    this.setData({ noteDraft: draft.text });
+  },
   async onCheckin() {
-    if (this.data.isCheckedInToday) {
-      showError('今天已经打卡啦');
-      return;
-    }
-
+    if (this.data.busy || !this.data.ready || this.data.hasSelectedRecord || (this.data.course && this.data.course.isDeleted)) return;
+    const { courseId, selectedDate: date, noteDraft } = this.data;
+    this.setData({ busy: true });
     try {
-      showLoading('打卡中...');
-
-      await db.addCheckin(this.data.courseId, {
-        date: getToday(),
-        simple: true
-      });
-
-      showSuccess('打卡成功 🎉');
-
-      // 刷新数据
-      this.loadCourseDetail();
-
-    } catch (error) {
-      if (error.code === 3000) {
-        // 重复打卡
-        showError('今天已经打卡啦');
-      } else {
-        showError('打卡失败');
-      }
-    } finally {
-      hideLoading();
-    }
+      const notes = normalizeCheckinNotes(noteDraft);
+      if (date !== today() && !await showModal('补记一节课', '确认在 ' + date + ' 上过这节课？同一课程同一天只记 1 节。', { confirmText: '确认补记' })) return;
+      await db.addCheckin(courseId, { date, notes });
+      this.clearDraft(courseId, date); this.render();
+      wx.showToast({ title: '已保存，等待同步', icon: 'none' });
+    } catch (error) { pageState.toast(error); }
+    finally { if (!this._unloaded) this.setData({ busy: false }); }
   },
-
-  // 点击打卡记录
-  onCheckinTap(e) {
-    const checkinId = e.currentTarget.dataset.id;
-    // 可以跳转到打卡详情页
-    console.log('Checkin tapped:', checkinId);
+  async onSaveNotes() {
+    if (this.data.busy || !this.data.ready || !this.data.hasSelectedRecord) return;
+    const { courseId, selectedDate: date, noteDraft } = this.data;
+    this.setData({ busy: true });
+    try {
+      const notes = normalizeCheckinNotes(noteDraft);
+      await db.updateCheckinNotes(courseId, date, notes);
+      this.clearDraft(courseId, date); this.render();
+      wx.showToast({ title: notes ? '备注已保存，待同步' : '备注已清空，待同步', icon: 'none' });
+    } catch (error) { pageState.toast(error); }
+    finally { if (!this._unloaded) this.setData({ busy: false }); }
   },
-
-  // 返回
-  onBack() {
-    wx.navigateBack();
+  onOpenRecordNote(event) {
+    if (this.data.busy || !this.data.ready) return;
+    const { date, recordId } = event.currentTarget.dataset;
+    const record = this.data.records.find(item => recordId ? item._id === recordId : item.date === date);
+    if (!record || !this.data.course) return;
+    this.setData({ noteModalOpen: true, modalCourseId: this.data.courseId, modalCourseName: this.data.course.name, modalDate: record.date, modalDateLabel: record.dateLabel, modalNotes: String(record.notes || '') });
   },
-
-  // 更多操作
-  onMore() {
-    this.setData({ showActionSheet: true });
+  onModalNotesInput(event) { if (!this.data.busy) this.setData({ modalNotes: event.detail.value }); },
+  onCloseNoteModal() { if (!this.data.busy) this.setData({ noteModalOpen: false, modalNotes: '' }); },
+  onModalTouchMove() {},
+  async onSaveModalNotes() {
+    if (this.data.busy || !this.data.ready || !this.data.noteModalOpen) return;
+    const { modalCourseId: courseId, modalDate: date, modalNotes } = this.data;
+    this.setData({ busy: true });
+    try {
+      const notes = normalizeCheckinNotes(modalNotes);
+      await db.updateCheckinNotes(courseId, date, notes);
+      this.clearDraft(courseId, date); this.setData({ noteModalOpen: false, modalNotes: '' }); this.render();
+      wx.showToast({ title: notes ? '备注已保存，待同步' : '备注已清空，待同步', icon: 'none' });
+    } catch (error) { pageState.toast(error); }
+    finally { if (!this._unloaded) this.setData({ busy: false }); }
   },
-
-  // 关闭操作菜单
-  onCloseAction() {
-    this.setData({ showActionSheet: false });
+  async onCancelCheckin(event) {
+    if (this.data.busy || !this.data.ready) return;
+    const courseId = this.data.courseId, date = event.currentTarget.dataset.date;
+    this.setData({ busy: true });
+    try {
+      if (!await showModal('撤销这次记课？', date + ' 的上课记录和这节课的备注将一并移除，已上课时减 1。需要时可以重新补记。', { confirmText: '撤销记录' })) return;
+      await db.cancelCheckin(courseId, date);
+      this.clearDraft(courseId, date); this.render();
+      wx.showToast({ title: '撤销已保存，待同步', icon: 'none' });
+    } catch (error) { pageState.toast(error); }
+    finally { if (!this._unloaded) this.setData({ busy: false }); }
   },
-
-  // 阻止冒泡
-  onPreventBubble() {
-    // 什么都不做，只是阻止冒泡
-  },
-
-  // 编辑课程
   onEdit() {
-    this.setData({ showActionSheet: false });
-    wx.navigateTo({
-      url: `/pages/course-edit/course-edit?id=${this.data.courseId}`
-    });
+    if (!this.data.ready || this.data.busy || !this.data.course || this.data.course.isDeleted) return;
+    wx.navigateTo({ url: '/pages/course-edit/course-edit?id=' + encodeURIComponent(this.data.courseId) });
   },
-
-  // 分享课程
-  onShare() {
-    this.setData({ showActionSheet: false });
-    // 实现分享逻辑
-    wx.showShareMenu({
-      withShareTicket: true,
-      menus: ['shareAppMessage', 'shareTimeline']
-    });
-  },
-
-  // 删除课程
-  async onDelete() {
-    this.setData({ showActionSheet: false });
-
-    const confirmed = await showModal(
-      '删除课程',
-      `确定要删除「${this.data.course.name}」吗？相关的所有打卡记录也会被删除。`,
-      { confirmText: '删除', confirmColor: '#EF4444' }
-    );
-
-    if (confirmed) {
-      try {
-        showLoading('删除中...');
-        await db.deleteCourse(this.data.courseId);
-        showSuccess('删除成功');
-        wx.navigateBack();
-      } catch (error) {
-        console.error('Delete course failed:', error);
-        showError('删除失败');
-      } finally {
-        hideLoading();
-      }
-    }
-  },
-
-  // 分享
-  onShareAppMessage() {
-    return {
-      title: `${this.data.course.name} - 已上${this.data.stats.total}节课`,
-      path: `/pages/course-detail/course-detail?id=${this.data.courseId}`
-    };
+  async onArchive() {
+    if (this.data.busy || !this.data.ready || !this.data.course) return;
+    const courseId = this.data.courseId, archived = this.data.course.isDeleted;
+    this.setData({ busy: true });
+    try {
+      if (!await showModal(archived ? '恢复课程' : '归档课程', archived ? '恢复后，课程会重新出现在首页。' : '课程将从首页隐藏，历史和统计都保留，可在“我的”恢复。')) return;
+      if (archived) await db.restoreCourse(courseId);
+      else await db.archiveCourse(courseId);
+      this.render();
+    } catch (error) { pageState.toast(error); }
+    finally { if (!this._unloaded) this.setData({ busy: false }); }
   }
 });

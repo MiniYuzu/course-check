@@ -2,20 +2,65 @@
 // 功能：课程的增删改查，带权限验证
 
 const cloud = require('wx-server-sdk');
+const crypto = require('crypto');
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 });
 
-const db = cloud.database();
+const db = cloud.database({ throwOnNotFound: false });
 const _ = db.command;
+const COURSE_TYPES = new Set(['swim', 'piano', 'english', 'art', 'dance', 'sports', 'music', 'other']);
+
+// wx 4.0.2 会丢失文档冲突的 code；仅识别官方冲突码/包装后的官方短语。
+async function runTransaction(callback) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      // 关闭 SDK 内层重试，整体最多尝试 3 次，失败事务由 SDK 回滚。
+      return await db.runTransaction(callback, 0);
+    } catch (error) {
+      const conflict = error && (error.code === 'DATABASE_TRANSACTION_CONFLICT' ||
+        (error.errCode === -501001 && /\bdatabase transaction conflict\b/i.test(`${error.message || ''} ${error.errMsg || ''}`)));
+      if (!conflict || attempt >= 2) throw error;
+    }
+  }
+}
+
+function formatLocalDate(date = new Date()) {
+  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function normalizeTotalLessons(value) {
+  if (value === undefined || value === null || value === '') return 0;
+  const parsed = Number(value);
+  if (!['number', 'string'].includes(typeof value) || !Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error('Total lessons must be a non-negative integer');
+  }
+  return parsed;
+}
+
+function normalizeReminder(reminder) {
+  if (!reminder || typeof reminder !== 'object') {
+    return { enabled: false, advanceMinutes: 60 };
+  }
+
+  const advanceMinutes = Number(reminder.advanceMinutes) || 60;
+  if (![15, 30, 60, 120].includes(advanceMinutes)) {
+    throw new Error('Invalid reminder');
+  }
+
+  return {
+    enabled: Boolean(reminder.enabled),
+    advanceMinutes
+  };
+}
 
 // 验证用户权限
-async function verifyAuth(context) {
+async function verifyAuth(event) {
   const wxContext = cloud.getWXContext();
   const OPENID = wxContext.OPENID;
 
-  if (!OPENID) {
+  if (!OPENID || (event.expectedOpenid !== undefined && event.expectedOpenid !== OPENID)) {
     throw new Error('Unauthorized');
   }
 
@@ -24,65 +69,64 @@ async function verifyAuth(context) {
 
 // 获取课程列表
 async function getCourses(openid, event) {
-  const { page = 1, limit = 50, includeStats = true } = event;
+  const { page = 1, limit = 50, includeArchived = false } = event;
+  if (!Number.isSafeInteger(page) || page < 1 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
+    throw new Error('Invalid pagination');
+  }
   const skip = (page - 1) * limit;
+  const condition = { _openid: openid };
+  if (!includeArchived) condition.isDeleted = _.neq(true);
 
   // 获取课程列表
   const { data: courses } = await db.collection('courses')
-    .where({
-      _openid: openid,
-      isDeleted: _.neq(true)
-    })
+    .where(condition)
     .orderBy('createdAt', 'desc')
+    .orderBy('_id', 'asc')
     .skip(skip)
     .limit(limit)
     .get();
 
-  if (!includeStats) {
-    return { courses, total: courses.length };
+  const { total } = await db.collection('courses').where(condition).count();
+  // 新客户端已单独分页取全记录；快照刷新无需为每门课再扫描一次历史。
+  const coursesWithStats = event.includeStats === false
+    ? courses.map(course => ({ ...course, initialLessons: course.initialLessons || 0, totalLessons: course.totalLessons || 0, isDeleted: course.isDeleted === true }))
+    : await Promise.all(courses.map(course => withStats(openid, course)));
+  return { courses: coursesWithStats, total };
+}
+
+async function withStats(openid, course) {
+  const condition = { courseId: course._id, _openid: openid };
+  const dates = new Set();
+  let skip = 0;
+  while (true) {
+    const { data } = await db.collection('checkins').where(condition).orderBy('_id', 'asc')
+      .skip(skip).limit(100).get();
+    data.forEach(checkin => dates.add(checkin.date));
+    skip += data.length;
+    if (data.length < 100) break;
   }
-
-  // 获取每个课程的打卡统计
-  const coursesWithStats = await Promise.all(
-    courses.map(async (course) => {
-      const { total } = await db.collection('checkins')
-        .where({
-          courseId: course._id,
-          _openid: openid
-        })
-        .count();
-
-      // 获取今天是否已打卡
-      const today = new Date().toISOString().split('T')[0];
-      const { data: todayCheckins } = await db.collection('checkins')
-        .where({
-          courseId: course._id,
-          _openid: openid,
-          date: today
-        })
-        .limit(1)
-        .get();
-
-      return {
-        ...course,
-        completedCount: total,
-        isCheckedIn: todayCheckins.length > 0
-      };
-    })
-  );
-
-  return { courses: coursesWithStats, total: coursesWithStats.length };
+  const initialLessons = course.initialLessons || 0;
+  return {
+    ...course,
+    initialLessons,
+    totalLessons: course.totalLessons || 0,
+    isDeleted: course.isDeleted === true,
+    completedCount: initialLessons + dates.size,
+    isCheckedIn: dates.has(formatLocalDate())
+  };
 }
 
 // 获取单个课程
 async function getCourse(openid, event) {
   const { courseId } = event;
+  if (!courseId) {
+    throw new Error('Course ID is required');
+  }
 
   const { data: courses } = await db.collection('courses')
     .where({
       _id: courseId,
-      _openid: openid,
-      isDeleted: _.neq(true)
+      _openid: openid
     })
     .limit(1)
     .get();
@@ -91,20 +135,7 @@ async function getCourse(openid, event) {
     throw new Error('Course not found');
   }
 
-  const course = courses[0];
-
-  // 获取打卡统计
-  const { total } = await db.collection('checkins')
-    .where({
-      courseId: course._id,
-      _openid: openid
-    })
-    .count();
-
-  return {
-    ...course,
-    completedCount: total
-  };
+  return withStats(openid, courses[0]);
 }
 
 // 添加课程
@@ -115,70 +146,77 @@ async function addCourse(openid, event) {
     icon,
     schedule,
     totalLessons,
+    initialLessons,
     notes,
     reminder,
     location,
-    teacher
+    teacher,
+    operationId
   } = event;
 
-  // 参数校验
-  if (!name || name.trim().length === 0) {
-    throw new Error('Course name is required');
+  if (typeof operationId !== 'string' || !operationId.trim() || operationId.length > 200) {
+    throw new Error('Invalid operationId');
   }
+  const courseId = `course_${crypto.createHash('sha256').update(JSON.stringify([openid, operationId])).digest('hex')}`;
 
-  if (name.length > 50) {
-    throw new Error('Course name too long (max 50 chars)');
-  }
+  await runTransaction(async transaction => {
+    const ref = transaction.collection('courses').doc(courseId);
+    const { data: existing } = await ref.get();
+    if (existing) {
+      if (existing._openid !== openid) throw new Error('Course not found');
+      return;
+    }
 
-  const now = Date.now();
-  const courseData = {
-    _openid: openid,
-    name: name.trim(),
-    type,
-    icon: icon || '',
-    schedule: schedule || '',
-    totalLessons: totalLessons || 0,
-    notes: notes || '',
-    reminder: reminder || { enabled: false, time: '20:00' },
-    location: location || '',
-    teacher: teacher || '',
-    isDeleted: false,
-    createdAt: now,
-    updatedAt: now
-  };
+    // 参数校验
+    if (typeof name !== 'string' || name.trim().length === 0) {
+      throw new Error('Course name is required');
+    }
 
-  const { _id } = await db.collection('courses').add({
-    data: courseData
+    if (name.length > 50) {
+      throw new Error('Course name too long (max 50 chars)');
+    }
+
+    if (!COURSE_TYPES.has(type)) {
+      throw new Error('Invalid course type');
+    }
+
+    const now = Date.now();
+    const courseData = {
+      _openid: openid,
+      operationId,
+      name: name.trim(),
+      type,
+      icon: icon || '',
+      schedule: schedule || '',
+      totalLessons: normalizeTotalLessons(totalLessons),
+      initialLessons: normalizeTotalLessons(initialLessons),
+      notes: notes || '',
+      reminder: normalizeReminder(reminder),
+      location: location || '',
+      teacher: teacher || '',
+      isDeleted: false,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    await ref.set({ data: courseData });
   });
-
-  return {
-    _id,
-    ...courseData,
-    completedCount: 0
-  };
+  return getCourse(openid, { courseId });
 }
 
 // 更新课程
 async function updateCourse(openid, event) {
   const { courseId, updates } = event;
-
-  // 检查权限
-  const { data: courses } = await db.collection('courses')
-    .where({
-      _id: courseId,
-      _openid: openid,
-      isDeleted: _.neq(true)
-    })
-    .limit(1)
-    .get();
-
-  if (courses.length === 0) {
-    throw new Error('Course not found');
+  if (!courseId) {
+    throw new Error('Course ID is required');
+  }
+  if (!updates || typeof updates !== 'object') {
+    throw new Error('Updates are required');
   }
 
   // 过滤允许更新的字段
   const allowedFields = [
-    'name', 'type', 'icon', 'schedule', 'totalLessons',
+    'name', 'type', 'icon', 'schedule', 'totalLessons', 'initialLessons',
     'notes', 'reminder', 'location', 'teacher'
   ];
 
@@ -191,7 +229,7 @@ async function updateCourse(openid, event) {
 
   // 校验名称
   if (updateData.name !== undefined) {
-    if (updateData.name.trim().length === 0) {
+    if (typeof updateData.name !== 'string' || updateData.name.trim().length === 0) {
       throw new Error('Course name cannot be empty');
     }
     if (updateData.name.length > 50) {
@@ -200,84 +238,82 @@ async function updateCourse(openid, event) {
     updateData.name = updateData.name.trim();
   }
 
+  if (updateData.type !== undefined && !COURSE_TYPES.has(updateData.type)) {
+    throw new Error('Invalid course type');
+  }
+
+  if (updateData.totalLessons !== undefined) {
+    updateData.totalLessons = normalizeTotalLessons(updateData.totalLessons);
+  }
+  if (updateData.initialLessons !== undefined) {
+    updateData.initialLessons = normalizeTotalLessons(updateData.initialLessons);
+  }
+
+  if (updateData.reminder !== undefined) {
+    updateData.reminder = normalizeReminder(updateData.reminder);
+  }
+
   updateData.updatedAt = Date.now();
 
-  await db.collection('courses').doc(courseId).update({
-    data: updateData
+  const updatedCourse = await runTransaction(async transaction => {
+    const ref = transaction.collection('courses').doc(courseId);
+    const { data: course } = await ref.get();
+    if (!course || course._openid !== openid || course.isDeleted === true) throw new Error('Course not found');
+    await ref.update({ data: updateData });
+    return { ...course, ...updateData };
   });
-
-  // 获取更新后的课程
-  return getCourse(openid, { courseId });
+  // 课程字段取自同一事务；进度仍由历史记录实时计算。
+  return withStats(openid, updatedCourse);
 }
 
-// 删除课程（软删除）
-async function deleteCourse(openid, event) {
+// 归档保留课程和历史；恢复后可以继续记课。
+async function setArchived(openid, event, isDeleted) {
   const { courseId, hardDelete = false } = event;
-
-  // 检查权限
-  const { data: courses } = await db.collection('courses')
-    .where({
-      _id: courseId,
-      _openid: openid
-    })
-    .limit(1)
-    .get();
-
-  if (courses.length === 0) {
-    throw new Error('Course not found');
+  if (!courseId) {
+    throw new Error('Course ID is required');
   }
 
   if (hardDelete) {
-    // 硬删除：删除课程和所有打卡记录
-    await db.collection('courses').doc(courseId).remove();
-
-    // 删除关联的打卡记录
-    const { data: checkins } = await db.collection('checkins')
-      .where({
-        courseId,
-        _openid: openid
-      })
-      .get();
-
-    for (const checkin of checkins) {
-      await db.collection('checkins').doc(checkin._id).remove();
-    }
-  } else {
-    // 软删除
-    await db.collection('courses').doc(courseId).update({
-      data: {
-        isDeleted: true,
-        deletedAt: Date.now(),
-        updatedAt: Date.now()
-      }
-    });
+    throw new Error('Invalid operation: permanent deletion is disabled');
   }
-
-  return { success: true, courseId };
+  await runTransaction(async transaction => {
+    const ref = transaction.collection('courses').doc(courseId);
+    const { data: course } = await ref.get();
+    if (!course || course._openid !== openid) throw new Error('Course not found');
+    await ref.update({ data: { isDeleted, deletedAt: isDeleted ? Date.now() : null, updatedAt: Date.now() } });
+  });
+  return getCourse(openid, { courseId });
 }
 
 // 主入口
-exports.main = async (event, context) => {
+exports.main = async (event = {}, context) => {
   try {
-    const openid = await verifyAuth(context);
+    const openid = await verifyAuth(event);
     const { action } = event;
+    const payload = event.data || event;
 
     let result;
     switch (action) {
       case 'list':
-        result = await getCourses(openid, event);
+        result = await getCourses(openid, payload);
         break;
       case 'get':
-        result = await getCourse(openid, event);
+        result = await getCourse(openid, payload);
         break;
       case 'add':
-        result = await addCourse(openid, event);
+        // 旧客户端没有操作编号，只兼容新增；可靠重试由新协议的稳定编号保证。
+        result = await addCourse(openid, !event.data && !payload.operationId
+          ? { ...payload, operationId: crypto.randomBytes(16).toString('hex') } : payload);
         break;
       case 'update':
-        result = await updateCourse(openid, event);
+        result = await updateCourse(openid, payload);
         break;
       case 'delete':
-        result = await deleteCourse(openid, event);
+      case 'archive':
+        result = await setArchived(openid, payload, true);
+        break;
+      case 'restore':
+        result = await setArchived(openid, payload, false);
         break;
       default:
         throw new Error(`Unknown action: ${action}`);
@@ -295,7 +331,10 @@ exports.main = async (event, context) => {
 
     const errorCode = error.message === 'Unauthorized' ? 401 :
                       error.message === 'Course not found' ? 404 :
-                      error.message.includes('required') ? 400 : 500;
+                      error.message.includes('required') ||
+                      error.message.includes('Invalid') ||
+                      error.message.includes('Course name') ||
+                      error.message.includes('must be') ? 400 : 500;
 
     return {
       success: false,

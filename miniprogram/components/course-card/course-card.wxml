@@ -1,37 +1,18 @@
-<!-- 课程卡片组件 - 活力版 -->
-<view class="course-card {{type}}" bindtap="onCardTap">
-  <!-- 装饰圆圈 -->
-  <view class="decoration-circle"></view>
-
-  <!-- 头部：图标和标题 -->
+<view class="course-card {{type}}" style="background: {{courseGradient}};" bindtap="onCardTap">
   <view class="card-header">
-    <view class="course-icon">
-      <text>{{icon}}</text>
-    </view>
+    <view class="course-icon">{{icon || '📖'}}</view>
     <view class="course-info">
       <text class="course-name">{{name}}</text>
-      <text class="course-schedule">{{schedule}}</text>
+      <text class="course-schedule">{{schedule || '点此补记与查看历史'}}</text>
     </view>
+    <text class="chevron">›</text>
   </view>
-
-  <!-- 进度区域 -->
-  <view class="progress-section">
-    <view class="progress-main">
-      <text class="progress-count">{{completedCount}}</text>
-      <text class="progress-unit">节课</text>
-    </view>
-    <view class="progress-bar">
-      <view class="progress-fill" style="width: {{progressPercent}}%"></view>
-    </view>
+  <view class="progress-row">
+    <view class="lesson-count"><text class="count">{{completedCount}}</text><text class="count-label">节课 · 已上</text></view>
+    <view wx:if="{{totalCount}}" class="progress-track"><view class="progress-fill" style="width: {{progressPercent}}%"></view></view>
   </view>
-
-  <!-- 打卡按钮 -->
-  <button
-    class="checkin-btn {{isCheckedIn ? 'completed' : ''}}"
-    catchtap="onCheckinTap"
-    disabled="{{isCheckedIn}}"
-  >
-    <text wx:if="{{isCheckedIn}}">✓ 今日已打卡</text>
-    <text wx:else>一键打卡 🎉</text>
-  </button>
+  <text class="remaining">{{totalCount ? '共 ' + totalCount + ' 节 · 剩余 ' + remaining + ' 节' : '未设置总课时'}}</text>
+  <text wx:if="{{overdrawn}}" class="overdrawn">已超出 {{overdrawn}} 节，可编辑总课时</text>
+  <button class="checkin-btn {{isCheckedIn ? 'completed' : ''}}" catchtap="onCheckinTap" disabled="{{isCheckedIn || busy || disabled}}" loading="{{busy}}">{{isCheckedIn ? '✓ 今日已打卡' : '一键打卡 🎉'}}</button>
+  <text wx:if="{{syncStatus && syncStatus !== 'synced'}}" class="status">{{syncStatus === 'failed' ? '同步失败 · 本机已保留' : '本机已保存 · 待同步'}}</text>
 </view>

@@ -7,7 +7,7 @@ Component({
     // 当前选中的 tab
     current: {
       type: String,
-      value: 'home' // home, stats, achieve, profile
+      value: 'home'
     },
     // 是否需要安全区域填充
     safeArea: {

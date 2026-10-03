@@ -32,6 +32,13 @@ function getToday() {
   return formatDate(new Date());
 }
 
+function addDays(dateStr, amount) {
+  const [year, month, day] = String(dateStr).split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + amount);
+  return formatDate(date);
+}
+
 /**
  * 获取星期几
  * @param {Date} date 日期对象
@@ -190,7 +197,7 @@ function hideLoading() {
  * @param {Object} options 其他选项
  */
 function showModal(title, content, options = {}) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     wx.showModal({
       title,
       content,
@@ -200,7 +207,8 @@ function showModal(title, content, options = {}) {
       confirmColor: options.confirmColor || '#2563EB',
       success: (res) => {
         resolve(res.confirm);
-      }
+      },
+      fail: (error) => reject(new Error(error.errMsg || '暂时无法打开确认框，请重试'))
     });
   });
 }
@@ -212,31 +220,14 @@ function showModal(title, content, options = {}) {
 function calculateStreak(checkins) {
   if (!checkins || checkins.length === 0) return 0;
 
-  // 按日期排序（降序）
-  const sorted = [...checkins].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const checkedDates = new Set(checkins.map(c => c.date).filter(Boolean));
+  const todayStr = getToday();
+  let checkDate = checkedDates.has(todayStr) ? todayStr : addDays(todayStr, -1);
 
   let streak = 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  // 检查今天是否打卡
-  const todayStr = formatDate(today);
-  const hasToday = sorted.some(c => c.date === todayStr);
-
-  // 如果今天没打卡，从昨天开始算
-  let checkDate = hasToday ? today : new Date(today - 86400000);
-
-  for (const checkin of sorted) {
-    const checkinDate = new Date(checkin.date);
-    checkinDate.setHours(0, 0, 0, 0);
-
-    const diffDays = Math.floor((checkDate - checkinDate) / 86400000);
-
-    if (diffDays === streak) {
-      streak++;
-    } else if (diffDays > streak) {
-      break;
-    }
+  while (checkedDates.has(checkDate)) {
+    streak++;
+    checkDate = addDays(checkDate, -1);
   }
 
   return streak;
@@ -286,6 +277,7 @@ function validate(data, rules) {
 
 module.exports = {
   formatDate,
+  addDays,
   getToday,
   getWeekday,
   formatRelativeTime,

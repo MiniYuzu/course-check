@@ -1,99 +1,20 @@
-/* 同步状态组件样式 */
-
 .sync-status {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 16rpx 24rpx;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 32rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.1);
-  opacity: 0;
-  transform: translateY(-20rpx);
-  transition: all 0.3s ease;
-  pointer-events: none;
-}
-
-.sync-status.visible {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-
-/* 同步中状态 */
-.sync-status.syncing {
-  background: rgba(239, 246, 255, 0.95);
-}
-
-/* 待同步状态 */
-.sync-status.pending {
-  background: rgba(254, 243, 199, 0.95);
-}
-
-/* 失败状态 */
-.sync-status.failed {
-  background: rgba(254, 226, 226, 0.95);
-}
-
-/* 指示器 */
-.sync-indicator {
-  width: 32rpx;
-  height: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sync-spinner {
-  width: 28rpx;
-  height: 28rpx;
-  border: 3rpx solid #2563EB;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.sync-icon {
-  font-size: 28rpx;
-  line-height: 1;
-}
-
-/* 文本 */
-.sync-text {
+  box-sizing: border-box;
+  margin-bottom: 28rpx;
+  border-radius: 24rpx;
+  padding: 24rpx;
   font-size: 24rpx;
-  color: #1E293B;
-  font-weight: 500;
+  line-height: 1.75;
+  background: #FFF5E4;
+  color: #855B22;
 }
 
-.sync-status.syncing .sync-text {
-  color: #2563EB;
+.sync-status.syncing {
+  color: #45628C;
+  background: #EDF3FF;
 }
 
-.sync-status.pending .sync-text {
-  color: #F59E0B;
-}
-
-.sync-status.failed .sync-text {
-  color: #EF4444;
-}
-
-/* 计数 */
-.sync-count {
-  min-width: 32rpx;
-  height: 32rpx;
-  background: #EF4444;
-  color: #fff;
-  font-size: 20rpx;
-  font-weight: 600;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 8rpx;
+.sync-status.failed {
+  color: #A34359;
+  background: #FFF0F2;
 }

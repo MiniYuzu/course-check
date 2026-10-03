@@ -1,116 +1,92 @@
-/* 首页样式 - 活力版 */
-
-.page {
-  min-height: 100vh;
+page {
   background: #F0F4FF;
-  padding-bottom: constant(safe-area-inset-bottom);
-  padding-bottom: env(safe-area-inset-bottom);
+  color: #1E293B;
 }
 
-/* 顶部区域 */
-.header-section {
+.home-page {
+  padding-bottom: calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.hero {
   position: relative;
-  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
-  padding: 100rpx 32rpx 60rpx;
-  color: #fff;
   overflow: hidden;
+  padding: 52rpx 48rpx 60rpx;
+  background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
+  color: #FFFFFF;
 }
 
-.header-bg-decoration {
-  position: absolute;
-  top: 80rpx;
-  right: 40rpx;
-}
-
-.sparkle {
-  font-size: 80rpx;
-  opacity: 0.3;
-}
-
-.header-content {
+.hero-title {
   position: relative;
-  z-index: 1;
-}
-
-.header-title {
+  display: block;
   font-size: 48rpx;
   font-weight: 700;
-  display: block;
+  line-height: 1.4;
 }
 
-.header-subtitle {
-  font-size: 28rpx;
-  opacity: 0.9;
+.hero-subtitle {
   display: block;
   margin-top: 12rpx;
+  font-size: 28rpx;
+  opacity: 0.9;
 }
 
-/* 连续打卡徽章 */
-.streak-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8rpx;
-  background: rgba(255, 255, 255, 0.2);
+.hero-summary {
+  display: inline-block;
+  margin-top: 24rpx;
   padding: 12rpx 24rpx;
   border-radius: 40rpx;
-  margin-top: 24rpx;
-  backdrop-filter: blur(10px);
-}
-
-.streak-icon {
-  font-size: 32rpx;
-}
-
-.streak-text {
+  background: rgba(255, 255, 255, 0.2);
   font-size: 26rpx;
-  font-weight: 500;
 }
 
-/* 课程列表 */
-.course-list {
-  height: calc(100vh - 300rpx - 120rpx - env(safe-area-inset-bottom));
+.hero-sparkle {
+  position: absolute;
+  top: 28rpx;
+  right: 48rpx;
+  font-size: 100rpx;
+  opacity: 0.3;
+  pointer-events: none;
 }
 
-.list-container {
-  padding: 20rpx;
+.home-content {
+  padding: 36rpx;
 }
 
-/* 添加课程卡片 */
-.add-card {
-  background: #fff;
-  border-radius: 40rpx;
+.home-content .secondary {
+  background: #E8EEFF;
+  color: #2563EB;
+}
+
+.add-course {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  width: 100%;
+  margin-top: 8rpx;
   padding: 40rpx;
-  text-align: center;
-  border: 2rpx dashed #CBD5E1;
-  transition: all 0.2s;
-}
-
-.add-card:active {
-  border-color: #2563EB;
-  background: #EFF6FF;
-  transform: scale(0.98);
+  border: 4rpx dashed #CBD5E1;
+  border-radius: 44rpx;
+  background: #FFFFFF;
+  color: #64748B;
+  font-size: 30rpx;
+  line-height: 1.5;
 }
 
 .add-icon {
-  width: 96rpx;
-  height: 96rpx;
-  background: #F1F5F9;
-  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #F1F5F9;
+  color: #1E293B;
   font-size: 48rpx;
-  color: #64748B;
-  margin: 0 auto 16rpx;
 }
 
-.add-text {
+.hint {
+  display: block;
+  margin-top: 24rpx;
   color: #64748B;
-  font-size: 30rpx;
-  font-weight: 500;
-}
-
-/* 底部占位 */
-.bottom-spacer {
-  height: 160rpx;
 }

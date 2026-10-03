@@ -1,4 +1,7 @@
 {
-  "usingComponents": {},
-  "navigationStyle": "custom"
+  "navigationBarTitleText": "添加课程",
+  "enablePullDownRefresh": false,
+  "usingComponents": {
+    "sync-status": "/components/sync-status/sync-status"
+  }
 }

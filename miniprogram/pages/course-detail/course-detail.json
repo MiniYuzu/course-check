@@ -1,6 +1,7 @@
 {
+  "navigationBarTitleText": "课程详情",
+  "enablePullDownRefresh": true,
   "usingComponents": {
-    "empty-state": "/components/empty-state/empty-state"
-  },
-  "navigationStyle": "custom"
+    "sync-status": "/components/sync-status/sync-status"
+  }
 }
