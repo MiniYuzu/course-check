@@ -1,0 +1,19 @@
+# Local machine, tooling, credentials and generated outputs
+.DS_Store
+node_modules/
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+project.private.config.json
+*.private.key
+*.pem
+.claude/
+.conductor/
+.gstack/
+.codex/
+.worktrees/
+# User exports contain private course histories; never commit them.
+exports/
+course-check-export.*
