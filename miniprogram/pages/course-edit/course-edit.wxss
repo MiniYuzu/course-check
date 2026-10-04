@@ -27,3 +27,10 @@
 .save-bar { position: fixed; z-index: 10; right: 0; bottom: 0; left: 0; padding: 24rpx 36rpx; padding-bottom: calc(24rpx + env(safe-area-inset-bottom)); background: #FFFFFF; border-top: 1rpx solid #E7ECF6; }
 .save-button { min-height: 96rpx; width: 100%; font-size: 30rpx; box-shadow: 0 10rpx 26rpx rgba(75, 80, 214, 0.15); }
 .save-button[disabled] { box-shadow: none; }
+.arrangement-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 16rpx; }
+.weekday-grid { display: flex; gap: 8rpx; margin: 20rpx 0; }
+.weekday-button { flex: 1; margin: 0; padding: 12rpx 0; background: #F1F5F9; color: #64748B; font-size: 26rpx; border-radius: 14rpx; }
+.weekday-button.selected { background: #EFF6FF; color: #2563EB; box-shadow: inset 0 0 0 2rpx #2563EB; }
+.slot-row { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 12rpx; font-size: 26rpx; color: #475569; }
+.time-picker { padding: 18rpx 20rpx; background: #F8FAFF; border-radius: 16rpx; color: #2563EB; }
+.effective-date { display: flex; justify-content: space-between; gap: 12rpx; padding: 24rpx 0; margin-top: 12rpx; color: #475569; font-size: 26rpx; }

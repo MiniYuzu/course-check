@@ -1,3 +1,4 @@
+const { attendanceStatus, attendanceDebit, selectRecords } = require('./attendance');
 // Calendar dates are always interpreted in China time.
 function today(now = new Date()) {
   return new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 10);
@@ -25,9 +26,7 @@ function normalizeCheckinNotes(value) {
   return notes;
 }
 function uniqueCheckins(checkins) {
-  const records = new Map();
-  checkins.forEach(item => records.set(`${item.courseId}|${item.date}`, item));
-  return [...records.values()].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(a.courseId).localeCompare(String(b.courseId)));
+  return selectRecords(checkins);
 }
 function isDatedRecord(item, date = today()) {
   if (typeof item.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(item.date) || item.date.startsWith('0000') || item.date > date) return false;
@@ -42,40 +41,57 @@ function monthOptions(date = today(), count = 24) {
   });
 }
 function summarize(courses, checkins, month = today().slice(0, 7), date = today()) {
-  const records = uniqueCheckins(checkins);
+  const rawCheckins = uniqueCheckins(checkins);
+  const records = rawCheckins.filter(item => attendanceStatus(item) !== 'voided');
+  const attended = records.filter(item => attendanceStatus(item) === 'attended');
   const dated = records.filter(item => isDatedRecord(item, date));
+  const monthRecords = dated.filter(item => item.date.startsWith(month));
   const decorated = courses.map(course => {
     const items = records.filter(item => item.courseId === course._id);
+    const present = items.filter(item => attendanceStatus(item) === 'attended');
+    const monthItems = items.filter(item => isDatedRecord(item, date) && item.date.startsWith(month));
     const initialLessons = Number(course.initialLessons) || 0;
     const totalLessons = Number(course.totalLessons) || 0;
-    const completedCount = initialLessons + items.length;
+    const completedCount = initialLessons + present.length;
+    const consumedCount = initialLessons + items.reduce((total, item) => total + attendanceDebit(item), 0);
+    const todayRecord = items.find(item => item.date === date);
     return {
-      ...course, initialLessons, totalLessons, completedCount, recordCount: items.length,
-      monthCount: items.filter(item => isDatedRecord(item, date) && item.date.startsWith(month)).length,
-      remainingCount: totalLessons ? Math.max(totalLessons - completedCount, 0) : null,
-      overdrawnCount: totalLessons ? Math.max(completedCount - totalLessons, 0) : 0,
-      progress: totalLessons ? Math.min(100, Math.round(completedCount / totalLessons * 100)) : null,
-      isCheckedIn: items.some(item => item.date === date)
+      ...course, initialLessons, totalLessons, completedCount, consumedCount, recordCount: present.length,
+      absentCount: items.filter(item => attendanceStatus(item) === 'absent').length,
+      cancelledCount: items.filter(item => attendanceStatus(item) === 'cancelled').length,
+      monthCount: monthItems.filter(item => attendanceStatus(item) === 'attended').length,
+      monthAbsentCount: monthItems.filter(item => attendanceStatus(item) === 'absent').length,
+      monthConsumedLessons: monthItems.reduce((total, item) => total + attendanceDebit(item), 0),
+      remainingCount: totalLessons ? Math.max(totalLessons - consumedCount, 0) : null,
+      overdrawnCount: totalLessons ? Math.max(consumedCount - totalLessons, 0) : 0,
+      progress: totalLessons ? Math.min(100, Math.round(consumedCount / totalLessons * 100)) : null,
+      isCheckedIn: Boolean(todayRecord && attendanceStatus(todayRecord) === 'attended'),
+      todayStatus: todayRecord ? attendanceStatus(todayRecord) : ''
     };
   });
-  const dates = new Set(dated.map(item => item.date));
+  const dates = new Set(dated.filter(item => attendanceStatus(item) === 'attended').map(item => item.date));
   let cursor = dates.has(date) ? date : addDays(date, -1);
   let streakDays = 0;
   while (dates.has(cursor)) { streakDays++; cursor = addDays(cursor, -1); }
   const week = Array.from({ length: 7 }, (_, index) => {
     const day = addDays(date, index - 6);
-    return { date: day, label: day.slice(5).replace('-', '/'), count: records.filter(item => item.date === day).length };
+    return { date: day, label: day.slice(5).replace('-', '/'), count: attended.filter(item => item.date === day).length };
   });
   const peak = Math.max(1, ...week.map(item => item.count));
   week.forEach(item => { item.height = Math.round(item.count / peak * 100); });
   return {
-    courses: decorated, checkins: records,
+    courses: decorated, checkins: records, rawCheckins,
     activeCourses: courses.filter(course => !course.isDeleted).length,
-      totalLessons: records.length + decorated.reduce((total, course) => total + course.initialLessons, 0),
-    recordedLessons: records.length,
+    totalLessons: attended.length + decorated.reduce((total, course) => total + course.initialLessons, 0),
+    recordedLessons: attended.length,
+    consumedCount: records.reduce((total, item) => total + attendanceDebit(item), 0) + decorated.reduce((total, course) => total + course.initialLessons, 0),
+    absentCount: records.filter(item => attendanceStatus(item) === 'absent').length,
+    cancelledCount: records.filter(item => attendanceStatus(item) === 'cancelled').length,
     initialLessons: decorated.reduce((total, course) => total + course.initialLessons, 0),
-    monthLessons: dated.filter(item => item.date.startsWith(month)).length,
-    todayLessons: records.filter(item => item.date === date).length,
+    monthLessons: monthRecords.filter(item => attendanceStatus(item) === 'attended').length,
+    monthAbsentCount: monthRecords.filter(item => attendanceStatus(item) === 'absent').length,
+    monthConsumedLessons: monthRecords.reduce((total, item) => total + attendanceDebit(item), 0),
+    todayLessons: attended.filter(item => item.date === date).length,
     streakDays, week
   };
 }

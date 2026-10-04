@@ -61,3 +61,66 @@ test('reading historical lesson notes leaves long original text intact', () => {
   const v = rules().summarize([{ _id: 'a' }], [{ courseId: 'a', date: '2026-01-01', notes }]);
   assert.equal(v.checkins[0].notes, notes);
 });
+
+test('absence debits consume a lesson without becoming attendance or a streak', () => {
+  const v = rules().summarize([{ _id: 'a', initialLessons: 4, totalLessons: 8 }], [
+    { courseId: 'a', date: '2026-10-01' },
+    { courseId: 'a', date: '2026-10-02', status: 'absent', debit: 0 },
+    { courseId: 'a', date: '2026-10-03', status: 'absent', debit: 1 },
+    { courseId: 'a', date: '2026-10-04', status: 'cancelled', debit: 0 }
+  ], '2026-10', '2026-10-04');
+  assert.equal(v.totalLessons, 5);
+  assert.equal(v.recordedLessons, 1);
+  assert.equal(v.consumedCount, 6);
+  assert.equal(v.absentCount, 2);
+  assert.equal(v.cancelledCount, 1);
+  assert.equal(v.monthLessons, 1);
+  assert.equal(v.monthAbsentCount, 2);
+  assert.equal(v.monthConsumedLessons, 2);
+  assert.equal(v.todayLessons, 0);
+  assert.equal(v.streakDays, 0);
+  assert.deepEqual(v.week.map(item => item.count), [0, 0, 0, 1, 0, 0, 0]);
+  const course = v.courses[0];
+  assert.equal(course.completedCount, 5);
+  assert.equal(course.recordCount, 1);
+  assert.equal(course.consumedCount, 6);
+  assert.equal(course.remainingCount, 2);
+  assert.equal(course.progress, 75);
+  assert.equal(course.monthCount, 1);
+  assert.equal(course.monthAbsentCount, 2);
+  assert.equal(course.monthConsumedLessons, 2);
+  assert.equal(course.isCheckedIn, false);
+  assert.equal(course.todayStatus, 'cancelled');
+});
+
+test('revision winners prevent undone or corrected results counting twice', () => {
+  const v = rules().summarize([{ _id: 'a', totalLessons: 1 }], [
+    { _id: 'void', courseId: 'a', date: '2026-10-04', status: 'voided', attendanceRevision: 3 },
+    { _id: 'legacy', courseId: 'a', date: '2026-10-04' },
+    { _id: 'older', courseId: 'a', date: '2026-10-03', status: 'attended', attendanceRevision: 1, updatedAt: '2026-10-04T05:00:00Z' },
+    { _id: 'newer', courseId: 'a', date: '2026-10-03', status: 'absent', debit: 1, attendanceRevision: 2, updatedAt: '2026-10-03T05:00:00Z' },
+    { _id: 'latest-time', courseId: 'a', date: '2026-10-02', status: 'cancelled', attendanceRevision: 1, updatedAt: '2026-10-04T05:00:00Z' },
+    { _id: 'earlier-time', courseId: 'a', date: '2026-10-02', attendanceRevision: 1, updatedAt: '2026-10-03T05:00:00Z' }
+  ], '2026-09', '2026-10-04');
+  assert.equal(v.totalLessons, 0);
+  assert.equal(v.consumedCount, 1);
+  assert.equal(v.courses[0].remainingCount, 0);
+  assert.equal(v.checkins.length, 2);
+  assert.equal(v.rawCheckins.length, 3);
+  assert.equal(v.rawCheckins[0]._id, 'void');
+  assert.equal(v.checkins[0]._id, 'newer');
+  assert.equal(v.checkins[1]._id, 'latest-time');
+  assert.equal(v.monthAbsentCount, 0);
+  assert.equal(v.week.reduce((n, item) => n + item.count, 0), 0);
+});
+
+test('week statistics stay independent of the selected month after status accounting', () => {
+  const v = rules().summarize([{ _id: 'a' }], [
+    { courseId: 'a', date: '2026-10-03', status: 'attended', debit: 1 },
+    { courseId: 'a', date: '2026-09-29', status: 'absent', debit: 1 }
+  ], '2026-09', '2026-10-04');
+  assert.equal(v.monthLessons, 0);
+  assert.equal(v.monthConsumedLessons, 1);
+  assert.equal(v.week.reduce((n, item) => n + item.count, 0), 1);
+  assert.equal(v.streakDays, 1);
+});

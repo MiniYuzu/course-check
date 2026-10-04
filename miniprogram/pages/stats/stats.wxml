@@ -19,6 +19,8 @@
         <view class="section-row"><text class="section-title">月度记录</text><picker id="stats-month" mode="date" fields="month" start="1900-01-01" end="{{today}}" value="{{month}}" bindchange="onMonthChange"><view class="picker">{{month}} ▾</view></picker></view>
         <view class="month-metrics"><view class="metric"><text class="metric-label">实际记录课时</text><view class="metric-number">{{summary.monthLessons}}<text>节</text></view></view><view class="metric orange"><text class="metric-label">有课的天数</text><view class="metric-number">{{activeDays}}<text>天</text></view></view></view>
         <text class="hint">只按上课日期统计，不含没有具体日期的初始课时。</text>
+        <text class="hint">本月实际消耗 {{summary.monthConsumedLessons}} 节（含缺席扣课，和实际出席分开计算）。</text>
+        <view class="month-outcome-links"><button class="text-button" data-filter="absent" bindtap="onAttendanceTap">缺席 {{monthAbsentCount}} 次 ›</button><button class="text-button" data-filter="pending" bindtap="onAttendanceTap">待确认 {{monthPendingCount}} 条 ›</button></view>
       </view>
       <view class="panel distribution-panel">
         <view class="section-row"><text class="section-title">各课程记录</text><text class="muted">{{month}}</text></view>

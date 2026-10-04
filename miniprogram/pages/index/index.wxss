@@ -52,6 +52,14 @@ page {
   padding: 36rpx;
 }
 
+.compact-reminder { width: 100%; display: flex; align-items: center; gap: 20rpx; min-height: 138rpx; box-sizing: border-box; padding: 22rpx 26rpx; margin-bottom: 20rpx; border-radius: 28rpx; background: #FFFFFF; text-align: left; line-height: 1.5; }
+.compact-reminder .grow { min-width: 0; }
+.reminder-symbol { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; border-radius: 20rpx; flex-shrink: 0; background: #EFF6FF; color: #2563EB; font-size: 34rpx; }
+.pending-symbol { background: #F5F3FF; color: #7C3AED; }
+.reminder-title { display: block; color: #334155; font-size: 27rpx; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reminder-meta { display: block; color: #64748B; font-size: 22rpx; margin-top: 4rpx; }
+.reminder-arrow { color: #94A3B8; font-size: 32rpx; }
+
 .home-content .secondary {
   background: #E8EEFF;
   color: #2563EB;

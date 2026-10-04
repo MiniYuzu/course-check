@@ -21,9 +21,15 @@
       <text class="hint">总课时留空或填 0 表示不设上限；续课时增加总课时。</text>
     </view>
     <view class="panel form-section">
-      <text class="small-heading">03 / 上课备忘</text>
-      <view class="field"><text class="field-label">固定上课时间 <text class="optional">可选</text></text><input id="course-schedule" class="input" placeholder="例如：每周六 10:00" placeholder-class="input-placeholder" value="{{course.schedule}}" bindinput="onScheduleInput" maxlength="100" disabled="{{!ready || saving || saved}}" /><text class="hint">仅作为备忘显示，不自动发送提醒。</text></view>
-      <view class="field"><text class="field-label">备注 <text class="optional">可选</text></text><textarea id="course-notes" class="textarea" placeholder="老师、教室，或其他想记住的事" placeholder-class="input-placeholder" value="{{course.notes}}" bindinput="onNotesInput" maxlength="500" disabled="{{!ready || saving || saved}}" adjust-position="{{true}}" cursor-spacing="100" /></view>
+      <text class="small-heading">03 / 上课安排</text>
+      <view class="arrangement-heading"><text class="field-label">每周固定安排</text><switch checked="{{scheduleEnabled}}" bindchange="onScheduleToggle" color="#2563EB" disabled="{{!ready || saving || saved}}" /></view>
+      <block wx:if="{{scheduleEnabled}}">
+        <view class="weekday-grid"><button wx:for="{{weekdays}}" wx:key="weekday" class="weekday-button {{item.selected ? 'selected' : ''}}" data-weekday="{{item.weekday}}" bindtap="onWeekdayTap" disabled="{{!ready || saving || saved}}">{{item.label}}</button></view>
+        <view wx:for="{{scheduleSlots}}" wx:key="weekday" class="slot-row"><text>{{item.label}}</text><picker mode="time" value="{{item.start}}" data-weekday="{{item.weekday}}" data-field="start" bindchange="onTimeChange" disabled="{{!ready || saving || saved}}"><view class="time-picker">{{item.start}} ▾</view></picker><text class="optional">至</text><picker mode="time" value="{{item.end}}" data-weekday="{{item.weekday}}" data-field="end" bindchange="onTimeChange" disabled="{{!ready || saving || saved}}"><view class="time-picker">{{item.end}} ▾</view></picker></view>
+      </block>
+      <picker wx:if="{{scheduleEnabled || hasScheduleHistory}}" mode="date" start="{{scheduleMinDate}}" value="{{scheduleDate}}" bindchange="onEffectiveDateChange" disabled="{{!ready || saving || saved}}"><view class="effective-date"><text>{{hasScheduleHistory ? '修改生效日期' : '安排开始日期'}}</text><text>{{scheduleDate}} ▾</text></view></picker>
+      <text class="hint">{{hasScheduleHistory ? '修改或停止安排最早明天生效，已经发生的记录不变。' : '开始日期前不生成计划；结束后只提示待确认，不自动记缺席。'}}</text>
+      <view class="field"><text class="field-label">备注 <text class="optional">可选</text></text><textarea id="course-notes" class="textarea" placeholder="班级、老师、教室，或临时上课说明" placeholder-class="input-placeholder" value="{{course.notes}}" bindinput="onNotesInput" maxlength="{{course.notes.length > 500 ? -1 : 500}}" disabled="{{!ready || saving || saved}}" adjust-position="{{true}}" cursor-spacing="100" /><text wx:if="{{course.notes.length > 500}}" class="hint">原备注和备忘已完整保留（{{course.notes.length}} 字），请精简至 500 字后保存。</text></view>
     </view>
     <text class="under-note">先安全保存在本机，网络正常时自动同步到当前微信账户。</text>
   </view>

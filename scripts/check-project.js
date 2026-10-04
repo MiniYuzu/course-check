@@ -58,5 +58,10 @@ for (const name of ['login', 'course', 'checkin', 'stats']) {
   const manifest = require(path.join(root, 'cloudfunctions', name, 'package.json'));
   if (!/^\d+\.\d+\.\d+$/.test(manifest.dependencies['wx-server-sdk'])) failures.push(`${name}: SDK must be pinned to an exact version`);
 }
+const attendance = fs.readFileSync(path.join(mini, 'utils/attendance.js'), 'utf8');
+for (const name of ['course', 'checkin', 'stats']) {
+  const file = path.join(root, 'cloudfunctions', name, 'attendance.js');
+  if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== attendance) failures.push(`${name}: attendance rules drifted; run npm run sync:attendance`);
+}
 if (failures.length) { console.error(failures.join('\n')); process.exitCode = 1; }
 else console.log(`Static checks passed (${checked} source/config/template files). This is not a WeChat compiler or device test.`);

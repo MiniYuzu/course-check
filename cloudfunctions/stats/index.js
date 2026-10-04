@@ -2,6 +2,7 @@
 // 功能：周统计、课程排行、月度统计、连续打卡、热力图数据
 
 const cloud = require('wx-server-sdk');
+const { selectRecords, attendanceStatus, attendanceDebit, attendanceOverview } = require('./attendance');
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
@@ -39,13 +40,16 @@ function realDatedCheckins(checkins) {
 
 // 旧版可能留下同课同日多个随机 ID；只在计算时去重，原始历史不变。
 function uniqueCheckins(checkins) {
-  const records = new Map();
-  checkins.forEach(checkin => records.set(JSON.stringify([checkin.courseId, checkin.date]), checkin));
-  return [...records.values()];
+  return selectRecords(checkins).filter(item => attendanceStatus(item) === 'attended');
 }
 
 async function getDatedCheckins(condition) {
-  return uniqueCheckins(realDatedCheckins(await getAll('checkins', condition)));
+  return realDatedCheckins(uniqueCheckins(await getAll('checkins', condition)));
+}
+
+function outcomeCounts(records) {
+  const outcomes = selectRecords(records).filter(item => attendanceStatus(item) !== 'voided');
+  return { absentCount: outcomes.filter(item => attendanceStatus(item) === 'absent').length, cancelledCount: outcomes.filter(item => attendanceStatus(item) === 'cancelled').length, consumedCount: outcomes.reduce((total, item) => total + attendanceDebit(item), 0) };
 }
 
 // 验证用户权限
@@ -63,7 +67,8 @@ async function verifyAuth(event) {
 // 获取总览统计
 async function getOverview(openid) {
   const courses = await getAll('courses', { _openid: openid });
-  const checkins = uniqueCheckins(await getAll('checkins', { _openid: openid }));
+  const raw = await getAll('checkins', { _openid: openid });
+  const checkins = uniqueCheckins(raw);
   const datedCheckins = realDatedCheckins(checkins);
   const totalCourses = courses.filter(course => course.isDeleted !== true).length;
   // 初始已上课时没有日期，只加入累计总数，不分摊到某天、某周或某月。
@@ -83,6 +88,10 @@ async function getOverview(openid) {
   const streaks = calculateStreaks([...new Set(datedCheckins.map(checkin => checkin.date))].sort());
 
   return {
+    ...outcomeCounts(raw),
+    consumedCount: outcomeCounts(raw).consumedCount + courses.reduce((total, course) => total + (course.initialLessons || 0), 0),
+    monthConsumedLessons: outcomeCounts(realDatedCheckins(selectRecords(raw)).filter(item => item.date >= monthStart)).consumedCount,
+    ...attendanceOverview(courses, raw, { now: new Date() }),
     totalCourses,
     totalCheckins,
     streakDays: streaks.current,
@@ -102,12 +111,14 @@ async function getWeeklyStats(openid, event) {
   const endDate = weekDates[6];
 
   // 获取本周所有打卡记录
-  const checkins = await getDatedCheckins({ _openid: openid, date: _.gte(startDate).and(_.lte(endDate)) });
+  const raw = realDatedCheckins(selectRecords(await getAll('checkins', { _openid: openid, date: _.gte(startDate).and(_.lte(endDate)) })));
+  const checkins = uniqueCheckins(raw);
 
   // 按日期统计
   const dailyStats = weekDates.map(date => {
     const dayCheckins = checkins.filter(c => c.date === date);
     return {
+      ...outcomeCounts(raw.filter(item => item.date === date)),
       date,
       dayOfWeek: getDayOfWeek(date),
       dayName: getDayName(date),
@@ -117,6 +128,7 @@ async function getWeeklyStats(openid, event) {
   });
 
   return {
+    ...outcomeCounts(raw),
     weekRange: { start: startDate, end: endDate },
     dailyStats,
     total: checkins.length
@@ -131,33 +143,27 @@ async function getCourseRanking(openid) {
   // 获取每个课程的打卡数
   const ranking = await Promise.all(
     courses.map(async (course) => {
-      const checkins = uniqueCheckins(await getAll('checkins', { courseId: course._id, _openid: openid }));
+      const raw = await getAll('checkins', { courseId: course._id, _openid: openid });
+      const checkins = uniqueCheckins(raw);
       const recordCount = checkins.length;
 
       // 最近打卡时间
-      const { data: recentCheckins } = await db.collection('checkins')
-        .where({
-          courseId: course._id,
-          _openid: openid
-        })
-        .orderBy('date', 'desc')
-        .limit(1)
-        .get();
-
-      const lastCheckinAt = recentCheckins.length > 0 ? recentCheckins[0].date : null;
+      const lastCheckinAt = checkins.length ? checkins.map(item => item.date).sort().at(-1) : null;
       const total = recordCount + (course.initialLessons || 0);
+      const consumedCount = outcomeCounts(raw).consumedCount + (course.initialLessons || 0);
 
       // 完成进度
       const progress = course.totalLessons > 0
-        ? Math.min(100, Math.round((total / course.totalLessons) * 100))
+        ? Math.min(100, Math.round((consumedCount / course.totalLessons) * 100))
         : 0;
 
       return {
         ...course,
+        ...outcomeCounts(raw), consumedCount,
         checkinCount: total,
         lastCheckinAt,
         progress,
-        remaining: Math.max(0, course.totalLessons - total)
+        remaining: Math.max(0, course.totalLessons - consumedCount)
       };
     })
   );
@@ -183,7 +189,9 @@ async function getMonthlyStats(openid, event) {
   const monthEnd = getMonthEnd(year, month);
 
   // 当月打卡记录
-  const checkins = await getDatedCheckins({ _openid: openid, date: _.gte(monthStart).and(_.lte(monthEnd)) });
+  const history = selectRecords(await getAll('checkins', { _openid: openid }));
+  const raw = realDatedCheckins(history).filter(item => item.date >= monthStart && item.date <= monthEnd);
+  const checkins = uniqueCheckins(raw);
 
   // 按课程统计
   const courseStats = {};
@@ -195,7 +203,7 @@ async function getMonthlyStats(openid, event) {
   });
 
   // 获取课程详情
-  const courseIds = Object.keys(courseStats);
+  const courseIds = [...new Set(raw.filter(item => attendanceStatus(item) !== 'voided').map(item => item.courseId))];
   const courses = await Promise.all(
     courseIds.map(async (id) => {
       const { data: courses } = await db.collection('courses')
@@ -208,7 +216,8 @@ async function getMonthlyStats(openid, event) {
       const courseData = courses[0] || {};
       return {
         ...courseData,
-        monthCheckins: courseStats[id]
+        ...outcomeCounts(raw.filter(item => item.courseId === id)),
+        monthCheckins: courseStats[id] || 0
       };
     })
   );
@@ -220,6 +229,8 @@ async function getMonthlyStats(openid, event) {
   const calendar = generateCalendar(year, month, checkins);
 
   return {
+    ...outcomeCounts(raw),
+    ...attendanceOverview(await getAll('courses', { _openid: openid }), history, { now: new Date(), month: monthStart.slice(0, 7) }),
     year,
     month,
     monthRange: { start: monthStart, end: monthEnd },

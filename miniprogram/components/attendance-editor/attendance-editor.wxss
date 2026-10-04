@@ -1,0 +1,16 @@
+.attendance-mask { position: fixed; z-index: 100; inset: 0; background: rgba(15,23,42,.38); display: flex; align-items: flex-end; }
+.attendance-sheet { width: 100%; box-sizing: border-box; border-radius: 32rpx 32rpx 0 0; padding: 36rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); background: #fff; max-height: 85vh; overflow-y: auto; color: #1E293B; }
+.sheet-title,.sheet-meta,.debit-hint,.sheet-error { display: block; }
+.sheet-title { font-size: 36rpx; font-weight: 700; }
+.sheet-meta,.debit-hint { font-size: 24rpx; color: #64748B; line-height: 1.6; margin-top: 8rpx; }
+.status-choices { display: flex; gap: 16rpx; margin: 28rpx 0; }
+.status-choice { flex: 1; margin: 0; padding: 0; font-size: 28rpx; background: #F1F5F9; color: #475569; }
+.status-choice.selected { color: #2563EB; background: #EFF6FF; box-shadow: inset 0 0 0 2rpx #2563EB; }
+.sheet-row { display: flex; justify-content: space-between; align-items: center; padding: 18rpx 0; font-size: 28rpx; }
+.note-toggle { display: flex; justify-content: space-between; width: 100%; padding: 20rpx 0; background: transparent; text-align: left; font-size: 26rpx; color: #475569; }
+.sheet-note { width: 100%; height: 132rpx; box-sizing: border-box; background: #F8FAFC; border-radius: 16rpx; padding: 20rpx; font-size: 28rpx; }
+.sheet-actions { display: flex; gap: 20rpx; margin-top: 28rpx; }
+.sheet-actions button { flex: 1; margin: 0; font-size: 28rpx; background: #F1F5F9; }
+.sheet-actions .save-outcome { background: #2563EB; color: #fff; }
+.sheet-error { color: #DC2626; font-size: 24rpx; margin-top: 12rpx; }
+button::after { border: none; }

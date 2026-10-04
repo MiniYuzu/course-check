@@ -1,10 +1,11 @@
 {
   "name": "course-check",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "单人微信课程记账小程序与云函数",
   "engines": { "node": ">=20" },
   "scripts": {
+    "sync:attendance": "node scripts/sync-attendance-domain.js",
     "test": "node --test tests/*.test.js",
     "check": "node scripts/check-project.js",
     "verify": "npm test && npm run check"

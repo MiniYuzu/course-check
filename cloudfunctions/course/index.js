@@ -3,6 +3,7 @@
 
 const cloud = require('wx-server-sdk');
 const crypto = require('crypto');
+const { applyScheduleChange, selectRecords, attendanceStatus, attendanceDebit } = require('./attendance');
 
 cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
@@ -96,23 +97,27 @@ async function getCourses(openid, event) {
 
 async function withStats(openid, course) {
   const condition = { courseId: course._id, _openid: openid };
-  const dates = new Set();
+  const rows = [];
   let skip = 0;
   while (true) {
     const { data } = await db.collection('checkins').where(condition).orderBy('_id', 'asc')
       .skip(skip).limit(100).get();
-    data.forEach(checkin => dates.add(checkin.date));
+    rows.push(...data);
     skip += data.length;
     if (data.length < 100) break;
   }
   const initialLessons = course.initialLessons || 0;
+  const records = selectRecords(rows);
+  const attended = records.filter(item => attendanceStatus(item) === 'attended');
   return {
     ...course,
     initialLessons,
     totalLessons: course.totalLessons || 0,
     isDeleted: course.isDeleted === true,
-    completedCount: initialLessons + dates.size,
-    isCheckedIn: dates.has(formatLocalDate())
+    completedCount: initialLessons + attended.length,
+    consumedCount: initialLessons + records.reduce((total, item) => total + attendanceDebit(item), 0),
+    absentCount: records.filter(item => attendanceStatus(item) === 'absent').length,
+    isCheckedIn: attended.some(item => item.date === formatLocalDate())
   };
 }
 
@@ -198,6 +203,7 @@ async function addCourse(openid, event) {
       createdAt: now,
       updatedAt: now
     };
+    if (event.scheduleChange !== undefined) courseData.scheduleVersions = scheduleVersions(courseData, event.scheduleChange, operationId);
 
     await ref.set({ data: courseData });
   });
@@ -258,7 +264,12 @@ async function updateCourse(openid, event) {
   const updatedCourse = await runTransaction(async transaction => {
     const ref = transaction.collection('courses').doc(courseId);
     const { data: course } = await ref.get();
-    if (!course || course._openid !== openid || course.isDeleted === true) throw new Error('Course not found');
+    if (!course || course._openid !== openid) throw new Error('Course not found');
+    // Schedule and ordinary fields are one operation. A replay must not write
+    // either part again after another edit has changed the current course.
+    if (updates.scheduleChange !== undefined && typeof event.operationId === 'string' && event.operationId && Array.isArray(course.scheduleVersions) && course.scheduleVersions.some(version => version.operationId === event.operationId)) return course;
+    if (course.isDeleted === true) throw new Error('Course not found');
+    if (updates.scheduleChange !== undefined) updateData.scheduleVersions = scheduleVersions(course, updates.scheduleChange, event.operationId);
     await ref.update({ data: updateData });
     return { ...course, ...updateData };
   });
@@ -266,9 +277,18 @@ async function updateCourse(openid, event) {
   return withStats(openid, updatedCourse);
 }
 
+function scheduleVersions(course, change, operationId) {
+  if (typeof operationId !== 'string' || !operationId.trim() || operationId.length > 200) throw new Error('Invalid operationId');
+  try { return applyScheduleChange(course, change, { today: formatLocalDate(), operationId }); }
+  catch (error) {
+    if (error.message.includes('已更新')) { error.code = 'SCHEDULE_CONFLICT'; throw error; }
+    throw new Error(`Invalid schedule: ${error.message}`);
+  }
+}
+
 // 归档保留课程和历史；恢复后可以继续记课。
 async function setArchived(openid, event, isDeleted) {
-  const { courseId, hardDelete = false } = event;
+  const { courseId, hardDelete = false, operationId } = event;
   if (!courseId) {
     throw new Error('Course ID is required');
   }
@@ -276,11 +296,36 @@ async function setArchived(openid, event, isDeleted) {
   if (hardDelete) {
     throw new Error('Invalid operation: permanent deletion is disabled');
   }
+  if (operationId !== undefined && (typeof operationId !== 'string' || !operationId.trim() || operationId.length > 200)) throw new Error('Invalid operationId');
   await runTransaction(async transaction => {
     const ref = transaction.collection('courses').doc(courseId);
     const { data: course } = await ref.get();
     if (!course || course._openid !== openid) throw new Error('Course not found');
-    await ref.update({ data: { isDeleted, deletedAt: isDeleted ? Date.now() : null, updatedAt: Date.now() } });
+    // Keep receipts independently of replaceable schedule history. A lost reply
+    // must not let an old archive/restore overwrite a newer user decision.
+    const operations = Array.isArray(course.archiveOperations) ? course.archiveOperations : [];
+    const applied = operationId && operations.find(operation => operation.operationId === operationId);
+    if (applied) {
+      if (applied.isDeleted !== isDeleted) throw new Error('Invalid operationId reuse');
+      return;
+    }
+    const receipt = operationId ? { archiveOperations: [...operations, { operationId, isDeleted }] } : {};
+    const legacyApplied = isDeleted && operationId && Array.isArray(course.scheduleVersions) && course.scheduleVersions.some(version => version.operationId === operationId && Array.isArray(version.slots) && version.slots.length === 0);
+    if (course.isDeleted === isDeleted || legacyApplied) {
+      if (operationId) await ref.update({ data: receipt });
+      return;
+    }
+    const update = { isDeleted, deletedAt: isDeleted ? Date.now() : null, updatedAt: Date.now() };
+    if (isDeleted && course.scheduleVersions && course.scheduleVersions.length) {
+      const requestedOn = event.requestedOn === undefined ? formatLocalDate() : event.requestedOn;
+      const parsed = new Date(`${requestedOn}T00:00:00Z`);
+      if (typeof requestedOn !== 'string' || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== requestedOn || requestedOn < '1900-01-01' || requestedOn > formatLocalDate()) throw new Error('Invalid archive date');
+      const effectiveFrom = new Date(parsed.getTime() + 86400000).toISOString().slice(0, 10);
+      const latest = [...course.scheduleVersions].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)).at(-1);
+      update.scheduleVersions = scheduleVersions(course, { requestedOn, effectiveFrom, slots: [], expectedVersion: latest.operationId || latest.effectiveFrom }, event.operationId || `archive:${requestedOn}`);
+      update.deletedAt = requestedOn;
+    }
+    await ref.update({ data: { ...update, ...receipt } });
   });
   return getCourse(openid, { courseId });
 }
@@ -294,6 +339,9 @@ exports.main = async (event = {}, context) => {
 
     let result;
     switch (action) {
+      case 'capabilities':
+        result = { attendanceVersion: 1 };
+        break;
       case 'list':
         result = await getCourses(openid, payload);
         break;
@@ -329,7 +377,7 @@ exports.main = async (event = {}, context) => {
   } catch (error) {
     console.error('Course function error:', error);
 
-    const errorCode = error.message === 'Unauthorized' ? 401 :
+    const errorCode = error.code === 'SCHEDULE_CONFLICT' ? 409 : error.message === 'Unauthorized' ? 401 :
                       error.message === 'Course not found' ? 404 :
                       error.message.includes('required') ||
                       error.message.includes('Invalid') ||

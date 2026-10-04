@@ -2,13 +2,13 @@
   <view wx:if="{{course}}" class="detail-hero {{course.type}}" style="background: {{courseGradient}};">
     <view class="course-head">
       <view class="detail-icon">{{course.icon || '📖'}}</view>
-      <view class="grow"><text class="course-title">{{course.name}}</text><text class="course-schedule">{{course.schedule || '未设置固定上课时间'}}</text></view>
+      <view class="grow"><text class="course-title">{{course.name}}</text><text class="course-schedule">{{scheduleLabel || '未设置固定上课时间'}}</text></view>
       <text wx:if="{{course.isDeleted}}" class="archive-badge">已归档</text>
       <button wx:else class="edit-link" bindtap="onEdit" disabled="{{!ready || busy}}">编辑</button>
     </view>
     <view class="balance-main">
       <view><text class="remaining-label">{{course.totalLessons ? '剩余课时' : '累计已上'}}</text><view class="remaining-number">{{course.totalLessons ? course.remainingCount : course.completedCount}}<text class="lesson-unit">节</text></view></view>
-      <view class="balance-secondary"><text>已上 {{course.completedCount}} 节</text><text>{{course.totalLessons ? '共 ' + course.totalLessons + ' 节课' : '未设置总课时'}}</text></view>
+      <view class="balance-secondary"><text>已上 {{course.completedCount}} 节</text><text wx:if="{{course.consumedCount !== course.completedCount}}">已消耗 {{course.consumedCount}} 节</text><text>{{course.totalLessons ? '共 ' + course.totalLessons + ' 节课' : '未设置总课时'}}</text></view>
     </view>
     <view wx:if="{{course.totalLessons}}" class="detail-track"><view class="detail-fill" style="width: {{course.progress}}%"></view></view>
     <text class="balance-note">其中 {{course.initialLessons}} 节为开始使用前已上</text>
@@ -21,13 +21,13 @@
     <view wx:if="{{isLoading && !course}}" class="loading">正在读取课程…</view>
     <view wx:if="{{!isLoading && !course && !error}}" class="panel empty">没有找到这门课程，请返回首页刷新。</view>
     <block wx:if="{{course}}">
-      <view class="info-note"><text class="info-icon">ⓘ</text><text class="grow">{{course.notes || '课程备注可在编辑中添加'}}</text></view>
+      <view class="info-note"><text class="info-icon">ⓘ</text><text class="grow">{{courseNotes || '课程备注可在编辑中添加'}}</text></view>
       <view wx:if="{{!course.isDeleted}}" class="panel checkin-panel">
         <view class="section-row"><text class="section-title">记一节课</text><text class="badge">每天 1 节</text></view>
         <picker id="lesson-date" mode="date" start="1900-01-01" end="{{today}}" value="{{selectedDate}}" bindchange="onDateChange" disabled="{{busy || !ready}}">
           <view class="field-date"><text>上课日期</text><text class="date-value">{{selectedDate}} <text class="date-arrow">▾</text></text></view>
         </picker>
-        <button id="record-lesson" class="primary record-button {{hasSelectedRecord ? 'completed' : ''}}" bindtap="onCheckin" loading="{{busy}}" disabled="{{busy || !ready || hasSelectedRecord}}">{{hasSelectedRecord ? (selectedDate === today ? '✓ 今日已打卡' : '✓ 这一天已记录') : (selectedDate === today ? '记录今天的课' : '补记这一天')}}</button>
+        <button id="record-lesson" class="primary record-button {{selectedStatus === 'attended' ? 'completed' : ''}} {{selectedStatus === 'absent' || selectedStatus === 'cancelled' ? 'outcome' : ''}}" bindtap="onCheckin" loading="{{busy}}" disabled="{{busy || !ready || selectedStatus === 'attended'}}">{{selectedStatus === 'attended' ? (selectedDate === today ? '✓ 今日已打卡' : '✓ 这一天已记录') : (selectedStatus === 'absent' ? '已记缺席 · 更正结果' : (selectedStatus === 'cancelled' ? '已记停课 · 更正结果' : (selectedDate === today ? '记录今天的课' : '补记这一天')))}}</button>
         <view class="lesson-note-editor">
           <button id="toggle-lesson-note" class="note-disclosure" bindtap="onToggleNotes" disabled="{{busy || !ready}}"><text>记一句 <text class="optional">可选</text></text><text class="disclosure-symbol">{{noteOpen ? '−' : '＋'}}</text></button>
           <view wx:if="{{noteOpen}}" class="inline-note">
@@ -38,21 +38,24 @@
         </view>
         <text class="hint">选择过去的日期，可以补上忘记记录的课。</text>
       </view>
-      <view wx:else class="warning">课程已归档，历史与备注仍可查看、修改。恢复后可继续记课。</view>
+      <view wx:else class="warning">课程已归档，未来安排停止；历史结果与备注仍可更正。恢复后请重新设置未来安排。</view>
       <view class="panel history-panel">
-        <view class="section-row"><view class="section-title">上课记录 <text class="history-count">· {{records.length}} 节</text></view><picker id="history-month" mode="date" fields="month" start="1900-01-01" end="{{today}}" value="{{month}}" bindchange="onMonthChange"><view class="picker">{{month || '全部月份'}} ▾</view></picker></view>
-        <text wx:if="{{records.length}}" class="timeline-hint">点记录，可补写一句话</text>
+        <view class="section-row"><view class="section-title">上课记录 <text class="history-count">· {{records.length}} 条</text></view><picker id="history-month" mode="date" fields="month" start="1900-01-01" value="{{month}}" bindchange="onMonthChange"><view class="picker">{{month || '全部月份'}} ▾</view></picker></view>
+        <view class="timeline-filters"><button wx:for="{{filters}}" wx:key="value" class="filter-button {{filter === item.value ? 'selected' : ''}}" data-filter="{{item.value}}" bindtap="onFilterTap">{{item.label}}</button></view>
+        <text wx:if="{{records.length}}" class="timeline-hint">待确认不等于缺席；未来课程不可提前确认</text>
         <view wx:if="{{!records.length}}" class="empty">{{month ? '这个月还没有上课记录' : '还没有逐条记录的课程'}}</view>
         <view class="lesson-timeline">
           <view wx:for="{{visibleRecords}}" wx:key="_id" class="timeline-record">
             <view class="date-tile"><text class="date-day">{{item.day}}</text><text class="date-weekday">{{item.weekday}}</text></view>
             <view class="record-body">
               <button class="record-main" data-record-id="{{item._id}}" data-date="{{item.date}}" bindtap="onOpenRecordNote" disabled="{{busy || !ready}}">
-                <view class="record-title">已记录 1 节 <text wx:if="{{item.date === today}}" class="today-badge">今天</text></view>
-                <text class="record-meta">{{item.dateLabel}} · {{item._syncStatus === 'failed' ? '同步失败 · 本机已保留' : (item._syncStatus && item._syncStatus !== 'synced' ? '已保存 · 待同步' : '已同步')}}</text>
+                <view class="record-title">{{item.statusLabel}} <text wx:if="{{item.date === today}}" class="today-badge">今天</text></view>
+                <text class="record-meta">{{item.dateLabel}}{{item.time ? ' · ' + item.time : ''}}{{item.debitLabel ? ' · ' + item.debitLabel : ''}}</text>
+                <text wx:if="{{item.isOutcome}}" class="record-meta">{{item._syncStatus === 'failed' ? '同步失败 · 本机已保留' : (item._syncStatus && item._syncStatus !== 'synced' ? '已保存 · 待同步' : '已同步')}} · 点此修改备注</text>
+                <text wx:if="{{item.reason}}" class="record-meta">原因：{{item.reason}}</text>
                 <text wx:if="{{item.notes}}" class="record-note">{{item.notes}}</text>
               </button>
-              <button class="text-button danger record-undo" data-date="{{item.date}}" bindtap="onCancelCheckin" disabled="{{busy || !ready || !item.date}}">撤销</button>
+              <view class="record-actions"><button wx:if="{{item.canConfirm && (!course.isDeleted || item.isOutcome)}}" class="text-button" data-key="{{item.key}}" bindtap="onOpenAttendance" disabled="{{busy || !ready}}">{{item.isOutcome ? '更正' : '确认'}}</button><text wx:if="{{!item.canConfirm && !item.isOutcome}}" class="future-hint">待上课</text><button wx:if="{{item.isOutcome}}" class="text-button danger" data-date="{{item.date}}" bindtap="onCancelCheckin" disabled="{{busy || !ready || !item.date}}">撤销</button></view>
             </view>
           </view>
         </view>
@@ -63,6 +66,7 @@
       <text class="under-note">归档不会删除历史，随时可以恢复。</text>
     </block>
   </view>
+  <attendance-editor open="{{attendanceOpen}}" row="{{attendanceRow}}" bind:close="onCloseAttendance" bind:saved="onAttendanceSaved" />
   <view wx:if="{{noteModalOpen}}" class="note-modal-mask" catchtap="onCloseNoteModal" catchtouchmove="onModalTouchMove">
     <view class="note-dialog" catchtap="onModalTouchMove">
       <view class="note-dialog-body">

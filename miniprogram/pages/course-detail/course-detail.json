@@ -2,6 +2,7 @@
   "navigationBarTitleText": "课程详情",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "sync-status": "/components/sync-status/sync-status"
+    "sync-status": "/components/sync-status/sync-status",
+    "attendance-editor": "/components/attendance-editor/attendance-editor"
   }
 }

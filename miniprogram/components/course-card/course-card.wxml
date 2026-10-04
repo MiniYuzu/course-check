@@ -12,7 +12,8 @@
     <view wx:if="{{totalCount}}" class="progress-track"><view class="progress-fill" style="width: {{progressPercent}}%"></view></view>
   </view>
   <text class="remaining">{{totalCount ? '共 ' + totalCount + ' 节 · 剩余 ' + remaining + ' 节' : '未设置总课时'}}</text>
+  <text wx:if="{{consumedCount > completedCount}}" class="status">含缺席扣课 {{consumedCount - completedCount}} 节</text>
   <text wx:if="{{overdrawn}}" class="overdrawn">已超出 {{overdrawn}} 节，可编辑总课时</text>
-  <button class="checkin-btn {{isCheckedIn ? 'completed' : ''}}" catchtap="onCheckinTap" disabled="{{isCheckedIn || busy || disabled}}" loading="{{busy}}">{{isCheckedIn ? '✓ 今日已打卡' : '一键打卡 🎉'}}</button>
+  <button class="checkin-btn {{isCheckedIn ? 'completed' : ''}} {{todayStatus === 'absent' || todayStatus === 'cancelled' ? 'outcome' : ''}}" catchtap="onCheckinTap" disabled="{{isCheckedIn || busy || disabled}}" loading="{{busy}}">{{isCheckedIn ? '✓ 今日已打卡' : (todayStatus === 'absent' ? '今日已记缺席 · 更正' : (todayStatus === 'cancelled' ? '今日已记停课 · 更正' : '一键打卡 🎉'))}}</button>
   <text wx:if="{{syncStatus && syncStatus !== 'synced'}}" class="status">{{syncStatus === 'failed' ? '同步失败 · 本机已保留' : '本机已保存 · 待同步'}}</text>
 </view>

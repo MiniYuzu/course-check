@@ -1,0 +1,11 @@
+.attendance-row { display: flex; gap: 20rpx; padding-bottom: 28rpx; position: relative; }
+.attendance-row::before { content: ''; position: absolute; left: 38rpx; top: 80rpx; bottom: 0; border-left: 3rpx dashed #DCE5F5; }
+.attendance-row:last-child::before { display: none; }
+.date-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 78rpx; height: 78rpx; border-radius: 50%; background: #EFF4FF; color: #5279B3; flex-shrink: 0; z-index: 1; }
+.date-day { font-size: 30rpx; font-weight: 700; }.date-weekday { font-size: 20rpx; }
+.attendance-body { flex: 1; min-width: 0; padding: 20rpx; border: 1rpx solid #E9EDF6; border-radius: 24rpx; background: #F8FAFF; }
+.course-link { width: 100%; padding: 0; margin: 0; text-align: left; background: transparent; color: #334155; font-size: 26rpx; line-height: 1.5; }
+.outcome-label { display: block; font-size: 24rpx; color: #475569; margin-top: 10rpx; }.outcome-label.attended { color: #059669; }.outcome-label.pending { color: #2563EB; }
+.record-note { display: block; color: #475569; font-size: 24rpx; margin-top: 10rpx; line-height: 1.7; word-break: break-word; }
+.result-action { padding: 14rpx 0 0; font-size: 24rpx; }.more-button { width: 100%; font-size: 24rpx; }
+.timeline-filters { display: flex; gap: 8rpx; margin: 0 0 24rpx; }.filter-button { flex: 1; margin: 0; padding: 12rpx 0; font-size: 24rpx; background: #F1F5F9; color: #64748B; border-radius: 16rpx; }.filter-button.selected { color: #2563EB; background: #EFF6FF; }

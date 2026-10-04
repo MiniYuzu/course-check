@@ -112,12 +112,18 @@ function createCloud(seed = {}, options = {}) {
     getWXContext: () => ({ OPENID: options.openid === undefined ? 'owner' : options.openid, APPID: 'app' })
   };
   const functions = {};
+  const modules = new Map();
+  function load(filename) {
+    if (modules.has(filename)) return modules.get(filename).exports;
+    const module = { exports: {} };
+    modules.set(filename, module);
+    const sandbox = { module, exports: module.exports, Date: Clock, console: { error: (...args) => logs.push(args) }, require: id => id === 'wx-server-sdk' ? cloud : id.startsWith('.') ? load(require.resolve(path.resolve(path.dirname(filename), id))) : require(id) };
+    vm.runInNewContext(fs.readFileSync(filename, 'utf8'), sandbox, { filename });
+    return module.exports;
+  }
   for (const name of ['login', 'course', 'checkin', 'stats']) {
     const filename = path.resolve(__dirname, '../../cloudfunctions', name, 'index.js');
-    const module = { exports: {} };
-    const sandbox = { module, exports: module.exports, Date: Clock, console: { error: (...args) => logs.push(args) }, require: id => id === 'wx-server-sdk' ? cloud : require(id) };
-    vm.runInNewContext(fs.readFileSync(filename, 'utf8'), sandbox, { filename });
-    functions[name] = module.exports.main;
+    functions[name] = load(filename).main;
   }
   return {
     call: async (name, event = {}) => structuredClone(await functions[name](event, {})),

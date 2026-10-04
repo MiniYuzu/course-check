@@ -32,3 +32,4 @@
 .detail-record .record-name { font-size: 27rpx; }
 .detail-record .record-meta { margin-top: 6rpx; font-size: 23rpx; }
 .more-button { width: 100%; margin-top: 12rpx; }
+.month-outcome-links { display: flex; justify-content: space-between; gap: 20rpx; margin-top: 16rpx; }.month-outcome-links button { font-size: 24rpx; padding: 12rpx 0; margin: 0; }

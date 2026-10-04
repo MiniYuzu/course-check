@@ -1,0 +1,1 @@
+{ "navigationBarTitleText": "上课记录", "enablePullDownRefresh": true, "usingComponents": { "sync-status": "/components/sync-status/sync-status", "attendance-editor": "/components/attendance-editor/attendance-editor" } }

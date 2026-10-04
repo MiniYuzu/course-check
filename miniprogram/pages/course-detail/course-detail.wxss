@@ -63,3 +63,7 @@
 .dialog-actions { display: flex; border-top: 1rpx solid #EDF0F7; }
 .dialog-actions button { flex: 1; min-height: 100rpx; background: #FFFFFF; color: #64728A; border-radius: 0; }
 .dialog-actions button + button { border-left: 1rpx solid #EDF0F7; color: #2563EB; font-weight: 600; }
+.record-button.outcome { background: #EEF2F7; color: #475569; }
+.timeline-filters { display: flex; gap: 8rpx; margin: 0 0 24rpx; }.filter-button { flex: 1; margin: 0; padding: 12rpx 0; font-size: 24rpx; background: #F1F5F9; color: #64748B; border-radius: 16rpx; }.filter-button.selected { color: #2563EB; background: #EFF6FF; }
+.record-actions { display: flex; justify-content: flex-end; align-items: center; gap: 24rpx; padding: 0 20rpx 12rpx; }.record-actions button { margin: 0; font-size: 24rpx; min-height: 64rpx; }.future-hint { color: #94A3B8; font-size: 24rpx; }
+.record-main { padding-right: 24rpx; }

@@ -2,9 +2,9 @@
 
 ## 现在的状态
 
-代码和本地回归测试已准备；真实 AppID、云环境 ID、云数据库权限、函数部署和微信编译/真机验证仍未完成。不要用历史 HTML 预览判断新版已经上线。
+当前工程已配置 AppID `wxd66f4d28e0aa952e` 和开发环境 `cloud1-d2g1nqof255e7c8b3`；本机开发者工具已登录，2026-10-04 已升级排课相关的三个云函数。原生联调进展与未验证项以 [验收记录](ACCEPTANCE.md) 为准，不要用历史 HTML 预览判断新版已经上线。
 
-最省心的顺序：**装工具 → 注册/确认小程序主体 → 取得 AppID → 创建测试云环境 → 配置并部署 → 真机验收 → 再考虑发布**。今晚不必再推进新功能。
+下面保留从零接入的步骤，供换电脑或接入自己的小程序时使用；已经完成的配置不必重复创建。顺序是：**装工具 → 确认小程序主体 → 取得 AppID → 创建测试云环境 → 配置并部署 → 真机验收 → 再考虑发布**。
 
 ## 1. 安装微信开发者工具（你手动完成）
 
@@ -26,7 +26,7 @@
 开发者工具选择“导入项目”，目录选整个 `course-check` 仓库，而不是只选 `miniprogram` 子目录。
 
 - 根配置已经指定 `miniprogramRoot: miniprogram/`、`cloudfunctionRoot: cloudfunctions/`。
-- 将根 `project.config.json` 的 `appid` 从 `touristappid` 替换成真实 AppID。
+- 换用另一个小程序时，修改根 `project.config.json` 的 `appid`；当前仓库已有真实 AppID，不需要再次替换。
 - `touristappid` 只是公开模板占位，不代表已经具备云开发权限。
 - 建议使用工具提供的当前稳定基础库；文件导出使用的 `wx.shareFileMessage` 至少需要基础库 2.16.1。[微信官方接口类型说明](https://github.com/wechat-miniprogram/api-typings/blob/master/types/wx/lib.wx.api.d.ts)
 
@@ -62,6 +62,8 @@
 新记课使用由“用户＋课程＋日期”生成的固定记录 ID，加数据库事务保证重复提交不增加课时，不依赖你手动为含旧重复数据的集合贸然创建唯一索引。事务只在服务端运行，且有操作数限制。[CloudBase 事务说明](https://docs.cloudbase.net/database/transaction)
 
 ## 6. 部署四个云函数
+
+如果改过排课规则，先在仓库根目录运行 `npm run sync:attendance`，再运行 `npm run verify`；`attendance.js` 必须随 `course`、`checkin`、`stats` 各自完整上传。旧手写排课数据无须批量迁移，用户在编辑课程中明确设置后才启用计划条目。
 
 1. 在每个函数目录根据锁文件安装依赖，例如 `cd cloudfunctions/login` 后执行 `npm ci --ignore-scripts`，其余三个同样处理。
 2. 在开发者工具选定测试云环境，将 `login`、`course`、`checkin`、`stats` 四个函数都上传/部署。部署选项以当前工具为准；要保证部署产物含锁定依赖，而非重新使用 `latest`。

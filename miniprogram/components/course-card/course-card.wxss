@@ -164,3 +164,4 @@
   margin-top: 16rpx;
   font-size: 24rpx;
 }
+.checkin-btn.outcome { background: rgba(255,255,255,.9); color: #475569; }

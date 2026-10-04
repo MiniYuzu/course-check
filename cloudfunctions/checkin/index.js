@@ -1,6 +1,7 @@
 // 云函数：记课、取消记课和历史查询。
 const cloud = require('wx-server-sdk');
 const crypto = require('crypto');
+const { normalizeAttendance, selectRecords, attendanceStatus } = require('./attendance');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database({ throwOnNotFound: false });
@@ -78,8 +79,58 @@ async function hasCheckedIn(openid, event) {
   const date = normalizeDate(event.date);
   const condition = { _openid: openid, date };
   if (event.courseId) condition.courseId = event.courseId;
-  const { total } = await db.collection('checkins').where(condition).count();
+  const rows = [];
+  while (true) {
+    const { data } = await db.collection('checkins').where(condition).orderBy('_id', 'asc').skip(rows.length).limit(100).get();
+    rows.push(...data);
+    if (data.length < 100) break;
+  }
+  const total = selectRecords(rows).filter(item => attendanceStatus(item) === 'attended').length;
   return { hasCheckedIn: total > 0, date, courseId: event.courseId || null, count: total };
+}
+
+async function setAttendance(openid, event) {
+  const { courseId, operationId, expectedRevision } = event;
+  if (typeof courseId !== 'string' || !courseId) throw new Error('Course ID is required');
+  if (typeof operationId !== 'string' || !operationId.trim() || operationId.length > 200) throw new Error('Invalid operationId');
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw new Error('Invalid expectedRevision');
+  const date = normalizeDate(event.date);
+  if (date < '1900-01-01') throw new Error('Invalid date');
+  let attendance;
+  try { attendance = normalizeAttendance(event, { allowVoided: true }); }
+  catch (error) { throw new Error(`Invalid attendance: ${error.message}`); }
+  if (event.debit !== undefined && event.debit !== attendance.debit) throw new Error('Invalid debit for status');
+  const id = checkinId(openid, courseId, date);
+  const { data: legacy } = await db.collection('checkins').where({ _openid: openid, courseId, date }).orderBy('_id', 'asc').limit(1).get();
+  return runTransaction(async transaction => {
+    const courseRef = transaction.collection('courses').doc(courseId);
+    const { data: course } = await courseRef.get();
+    if (!course || course._openid !== openid) throw new Error('Course not found');
+    const records = await readExisting(transaction, [...new Set([id, ...legacy.map(item => item._id)])], openid, courseId, date);
+    const current = selectRecords(records)[0];
+    if (current && current.operationId === operationId) return { ...current, courseName: course.name };
+    rejectSupersededOperation(current, operationId);
+    const revision = current && current.attendanceRevision || 0;
+    if (expectedRevision !== revision) { const error = new Error('Attendance changed, refresh and confirm cloud result'); error.code = 'ATTENDANCE_CONFLICT'; throw error; }
+    if (course.isDeleted && (!current || attendanceStatus(current) === 'voided')) throw new Error('Invalid operation: course is archived');
+    const now = Date.now();
+    // Server-owned replay receipts survive corrections and undo. Never truncate:
+    // an old applied operation must not overwrite a later device's decision.
+    const attendanceOperationIds = [...new Set([...(current && Array.isArray(current.attendanceOperationIds) ? current.attendanceOperationIds : []), current && current.operationId, operationId].filter(id => typeof id === 'string' && id))];
+    const data = { ...current, ...attendance, _openid: openid, courseId, date, operationId, attendanceOperationIds, attendanceRevision: revision + 1, createdAt: current && current.createdAt || now, updatedAt: now };
+    delete data._id;
+    await transaction.collection('checkins').doc(id).set({ data });
+    await courseRef.update({ data: { lessonRevision: (course.lessonRevision || 0) + 1 } });
+    return { _id: id, ...data, courseName: course.name };
+  });
+}
+
+function rejectSupersededOperation(record, operationId) {
+  if (operationId && record && record.operationId !== operationId && Array.isArray(record.attendanceOperationIds) && record.attendanceOperationIds.includes(operationId)) {
+    const error = new Error('Attendance operation already applied and changed later, refresh and confirm cloud result');
+    error.code = 'ATTENDANCE_CONFLICT';
+    throw error;
+  }
 }
 
 // 事务不支持 where。先定位旧随机 ID，再在事务里逐一读取复验。
@@ -104,6 +155,15 @@ async function readExisting(transaction, ids, openid, courseId, date, firstOnly 
     }
   }
   return records;
+}
+
+async function protectLegacyWrite(transaction, openid, courseId, date) {
+  const { data } = await transaction.collection('checkins').doc(checkinId(openid, courseId, date)).get();
+  if (data && data._openid === openid && data.attendanceRevision) {
+    const error = new Error('Attendance changed, refresh and retry using the current revision');
+    error.code = 'ATTENDANCE_CONFLICT';
+    throw error;
+  }
 }
 
 async function checkin(openid, event) {
@@ -152,16 +212,24 @@ async function updateNotes(openid, event) {
   if (typeof courseId !== 'string' || !courseId || typeof date !== 'string' || !date) throw new Error('Course ID and date are required');
   const notes = normalizeNotes(event.notes);
   // 按原始日期更正已有记录，也允许修正旧版异常日期的备注；绝不创建记录。
+  const { data: canonical } = await db.collection('checkins').doc(checkinId(openid, courseId, date)).get();
+  if (canonical && canonical._openid === openid && canonical.attendanceRevision) {
+    rejectSupersededOperation(canonical, event.operationId);
+    if (attendanceStatus(canonical) === 'voided') throw new Error('Checkin not found');
+    return setAttendance(openid, { ...canonical, notes, operationId: event.operationId || crypto.randomBytes(16).toString('hex'), expectedRevision: canonical.attendanceRevision });
+  }
   const ids = await findExistingIds(openid, courseId, date);
   const updatedIds = [];
   const updatedAt = Date.now();
   const notesWriteToken = crypto.randomBytes(16).toString('hex');
-  // 兼容同一天旧随机 ID 的重复记录。每批读+写最多 82 次，保留全部原始记录。
+  // 兼容同一天旧随机 ID 的重复记录。每批读+写最多 83 次，保留全部原始记录。
   for (let offset = 0; offset < ids.length; offset += 40) {
     const updated = await runTransaction(async transaction => {
       const courseRef = transaction.collection('courses').doc(courseId);
       const { data: course } = await courseRef.get();
       if (!course || course._openid !== openid) throw new Error('Course not found');
+      // 外部探测只用于分流；事务内复验，绝不能用旧写法修改已升级的版本记录。
+      await protectLegacyWrite(transaction, openid, courseId, date);
       if (offset > 0 && course.notesWriteToken !== notesWriteToken) {
         const error = new Error('Checkin notes changed concurrently, please retry');
         error.code = 'CHECKIN_NOTES_CONFLICT';
@@ -190,17 +258,24 @@ async function cancelCheckin(openid, event) {
   if (typeof courseId !== 'string' || !courseId || !date) throw new Error('Course ID and date are required');
   // 删除只匹配当前身份、课程和原始日期；新增的日历校验不能阻止纠正旧误记。
   if (typeof date !== 'string') throw new Error('Invalid date');
+  const { data: canonical } = await db.collection('checkins').doc(checkinId(openid, courseId, date)).get();
+  if (canonical && canonical._openid === openid && canonical.attendanceRevision) {
+    rejectSupersededOperation(canonical, event.operationId);
+    if (attendanceStatus(canonical) === 'voided') return canonical;
+    return setAttendance(openid, { courseId, date, status: 'voided', debit: 0, operationId: event.operationId || crypto.randomBytes(16).toString('hex'), expectedRevision: canonical.attendanceRevision });
+  }
   const ids = await findExistingIds(openid, courseId, date);
   const canonicalId = checkinId(openid, courseId, date);
   const orderedIds = [...ids.filter(id => id !== canonicalId), canonicalId];
   const deletedIds = [];
-  // 每批 40 条：读+删+课程读写最多 82 次，低于事务 100 次上限。
+  // 每批 40 条：读+删+课程读写及版本复验最多 83 次，低于事务 100 次上限。
   // 最后一批才删除确定 ID；中途失败可安全重试，清除剩余旧记录。
   for (let offset = 0; offset < orderedIds.length; offset += 40) {
     const removed = await runTransaction(async transaction => {
       const courseRef = transaction.collection('courses').doc(courseId);
       const { data: course } = await courseRef.get();
       if (course && course._openid !== openid) throw new Error('Course not found');
+      await protectLegacyWrite(transaction, openid, courseId, date);
       const records = await readExisting(transaction, orderedIds.slice(offset, offset + 40), openid, courseId, date);
       for (const record of records) await transaction.collection('checkins').doc(record._id).remove();
       if (course && records.length) await courseRef.update({ data: { lessonRevision: (course.lessonRevision || 0) + 1 } });
@@ -229,14 +304,15 @@ exports.main = async (event = {}) => {
   try {
     const { OPENID } = cloud.getWXContext();
     if (!OPENID || (event.expectedOpenid !== undefined && event.expectedOpenid !== OPENID)) throw new Error('Unauthorized');
-    const handlers = { list: getCheckins, hasCheckedIn, checkin, updateNotes, cancel: cancelCheckin, batch: batchCheckin };
+    const handlers = { list: getCheckins, hasCheckedIn, checkin, setAttendance, updateNotes, cancel: cancelCheckin, batch: batchCheckin };
     const handler = handlers[event.action];
     if (!handler) throw new Error(`Invalid action: ${event.action}`);
-    const data = await handler(OPENID, event.data || event);
+    const payload = event.data || event;
+    const data = await handler(OPENID, event.operationId && event.data ? { ...payload, operationId: event.operationId } : payload);
     return { success: true, code: 200, data, message: 'Success' };
   } catch (error) {
     console.error('Checkin function error:', error);
-    const code = error.message === 'Unauthorized' ? 401 : error.code === 'CHECKIN_NOTES_CONFLICT' ? 409 :
+    const code = error.message === 'Unauthorized' ? 401 : ['CHECKIN_NOTES_CONFLICT', 'ATTENDANCE_CONFLICT'].includes(error.code) ? 409 :
       ['Course not found', 'Checkin not found'].includes(error.message) ? 404 :
       error.message.includes('required') || error.message.includes('Invalid') ? 400 : 500;
     return { success: false, code, data: null, message: error.message };

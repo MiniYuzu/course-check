@@ -15,7 +15,9 @@
       <text class="empty-title">从第一门课程开始</text>
       <text>填好课程和课时，之后点一下就能记课。</text>
     </view>
-    <course-card wx:for="{{courses}}" wx:key="_id" course-id="{{item._id}}" type="{{item.type}}" icon="{{item.icon}}" name="{{item.name}}" schedule="{{item.schedule}}" completed-count="{{item.completedCount}}" total-count="{{item.totalLessons}}" is-checked-in="{{item.isCheckedIn}}" sync-status="{{item._syncStatus}}" busy="{{busyId === item._id}}" disabled="{{!ready}}" bind:cardtap="onCourseTap" bind:checkin="onCheckin" />
+    <button wx:if="{{nextSession}}" class="compact-reminder" bindtap="onNextTap"><text class="reminder-symbol">◷</text><view class="grow"><text class="reminder-title">下一次 · {{nextSession.courseName}}</text><text class="reminder-meta">{{nextSession.relativeDay}} · {{nextSession.time}}</text></view><text class="reminder-arrow">›</text></button>
+    <button wx:if="{{hasData && pendingCount > 0}}" class="compact-reminder" bindtap="onPendingTap"><text class="reminder-symbol pending-symbol">?</text><view class="grow"><text class="reminder-title">有 {{pendingCount}} 条待确认</text><text class="reminder-meta">上课结束后，确认出席、缺席或停课</text></view><text class="reminder-arrow">›</text></button>
+    <course-card wx:for="{{courses}}" wx:key="_id" course-id="{{item._id}}" type="{{item.type}}" icon="{{item.icon}}" name="{{item.name}}" schedule="{{item.scheduleLabel}}" completed-count="{{item.completedCount}}" consumed-count="{{item.consumedCount}}" today-status="{{item.todayStatus}}" total-count="{{item.totalLessons}}" is-checked-in="{{item.isCheckedIn}}" sync-status="{{item._syncStatus}}" busy="{{busyId === item._id}}" disabled="{{!ready}}" bind:cardtap="onCourseTap" bind:checkin="onCheckin" />
     <button wx:if="{{ready}}" class="add-course" bindtap="onAddCourse">
       <text class="add-icon">＋</text>
       <text>添加新课程</text>

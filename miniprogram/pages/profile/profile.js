@@ -5,7 +5,7 @@ const { showModal } = require('../../utils/util');
 const { buildExport, shareExport } = require('../../utils/export');
 const pageState = require('../../utils/page-state');
 Page({
-  data: { archived: [], queueStats: {}, pending: [], legacyCount: 0, isLoading: true, ready: false, error: '', offline: '', syncing: false, exporting: false },
+  data: { archived: [], queueStats: {}, pending: [], legacyCount: 0, conflictOperationId: '', adopting: false, isLoading: true, ready: false, error: '', offline: '', syncing: false, exporting: false },
   onLoad() { pageState.watch(this); },
   onShow() { return this.loadProfile(); },
   onUnload() { pageState.unwatch(this); },
@@ -17,13 +17,30 @@ Page({
     const pending = state.queue.map(item => {
       const courseId = state.aliases[item.payload.courseId] || item.payload.courseId;
       const course = courses.find(value => value._id === courseId);
-      return { ...item, courseName: course ? course.name : (item.payload.name || '课程记录'), label: ({ add_course: '新增课程', update_course: '修改课程', checkin: '记课', update_checkin_notes: '修改课后备注', cancel_checkin: '撤销记录', archive_course: '归档课程', restore_course: '恢复课程' })[item.type] || item.type };
+      return { ...item, courseName: course ? course.name : (item.payload.name || '课程记录'), label: ({ add_course: '新增课程', update_course: '修改课程', checkin: '记课', set_attendance: '确认或更正上课结果', update_checkin_notes: '修改课后备注', cancel_checkin: '撤销记录', archive_course: '归档课程', restore_course: '恢复课程' })[item.type] || item.type };
     });
-    this.setData({ archived: courses.filter(course => course.isDeleted), pending, legacyCount: Object.keys(storage.legacyData()).length });
+    const head = state.queue[0];
+    const eligible = head && head.status === 'failed' && head.lastErrorCode === 409 && (['set_attendance', 'update_checkin_notes', 'cancel_checkin'].includes(head.type) || (head.type === 'update_course' && head.payload.updates && head.payload.updates.scheduleChange));
+    this.setData({ archived: courses.filter(course => course.isDeleted), pending, conflictOperationId: eligible ? head._id : '', legacyCount: Object.keys(storage.legacyData()).length });
     SyncQueue.getStats().then(queueStats => { if (!this._unloaded) this.setData({ queueStats }); });
   },
+  async onAdoptCloudResult() {
+    if (this.data.adopting || this.data.syncing || !this.data.conflictOperationId) return;
+    const operationId = this.data.conflictOperationId, accountKey = storage.getSession()?.key;
+    this.setData({ adopting: true });
+    try {
+      const head = storage.read().queue[0];
+      const schedule = head && head.type === 'update_course';
+      if (!await showModal('采用云端结果？', '先联网刷新，再采用云端已保存的结果。' + (schedule ? '这次安排修改及依赖它的后续安排修改' : '这门课程这一天尚未同步的结果、备注和撤销修改') + '将从待同步队列移出，并保留在完整 JSON 备份中；其他修改保留，仍可手动重试。请确认放弃这些本机修改。', { confirmText: '采用云端' })) return;
+      if (storage.requireSession().key !== accountKey) throw new Error('账号已变化，请重新确认冲突记录');
+      const result = await db.adoptCloudResult(operationId);
+      if (this._unloaded || storage.getSession()?.key !== accountKey) return;
+      this.render(); wx.showToast({ title: result.discardedCount + ' 项已备份，采用云端结果', icon: 'none' });
+    } catch (error) { if (!this._unloaded) pageState.toast(error); }
+    finally { if (!this._unloaded) this.setData({ adopting: false }); }
+  },
   async onSyncTap() {
-    if (this.data.syncing) return;
+    if (this.data.syncing || this.data.adopting) return;
     this.setData({ syncing: true });
     try {
       await getApp().ensureReady();
@@ -36,11 +53,15 @@ Page({
     finally { this.setData({ syncing: false }); }
   },
   async onRestore(event) {
+    const courseId = event.currentTarget.dataset.id, accountKey = storage.getSession()?.key;
     try {
-      if (!await showModal('恢复课程', '恢复后可继续在首页记课，历史记录不变。')) return;
-      await db.restoreCourse(event.currentTarget.dataset.id);
+      if (!await showModal('恢复课程', '恢复后可在首页记课，历史不变；原上课安排不会自动恢复，请编辑设置新的未来安排。')) return;
+      if (this._unloaded) return;
+      if (storage.requireSession().key !== accountKey) throw new Error('账号已变化，请重新打开课程');
+      await db.restoreCourse(courseId);
+      if (this._unloaded || storage.getSession()?.key !== accountKey) return;
       this.render();
-    } catch (error) { pageState.toast(error); }
+    } catch (error) { if (!this._unloaded) pageState.toast(error); }
   },
   onCourseTap(event) { wx.navigateTo({ url: `/pages/course-detail/course-detail?id=${encodeURIComponent(event.currentTarget.dataset.id)}` }); },
   async onDataExport() {
@@ -62,5 +83,5 @@ Page({
       await shareExport(JSON.stringify({ version: 'legacy-unverified', data: storage.legacyData() }, null, 2), 'json');
     } catch (error) { if (!(error.errMsg || '').includes('cancel')) pageState.toast(error); }
   },
-  onHelp() { return showModal('记课说明', '同一课程同一天算 1 节。补记选择真实上课日期，误记可撤销。初始已上课时只计累计，不计月份。归档保留历史；续课时在编辑课程中增加总课时。标记“待同步”时请勿卸载或清除缓存。', { showCancel: false }); }
+  onHelp() { return showModal('记课说明', '同一课程同一天最多 1 节。出席扣 1 节；缺席默认不扣，可按约定选择扣 1 节；停课不扣。安排结束后只会待确认，不会自动算缺席。补记选择真实日期，误记可更正或撤销。初始课时只计累计，不计月份。归档停止未来安排并保留历史；恢复后请设置新的未来安排。续课可增加总课时。待同步时请勿卸载或清除缓存。', { showCancel: false }); }
 });

@@ -1,0 +1,20 @@
+<view class="attendance-page">
+  <view class="hero"><text class="hero-title">每次上课，都有结果</text><text class="hero-subtitle">待确认不等于缺席，确认后才计入账本。</text></view>
+  <view class="page-content">
+    <sync-status />
+    <view wx:if="{{error}}" class="error-box">{{error}}<button class="secondary" bindtap="loadAttendance">重新连接</button></view>
+    <view wx:if="{{offline}}" class="warning">{{offline}}。本机修改保留，联网后可重试。</view>
+    <view wx:if="{{isLoading && !records.length}}" class="loading">正在读取上课记录…</view>
+    <view class="panel">
+      <view class="section-row"><text class="section-title">全部课程</text><picker mode="date" fields="month" value="{{month}}" start="1900-01-01" bindchange="onMonthChange"><view class="picker">{{month || '全部月份'}} ▾</view></picker></view>
+      <view class="timeline-filters"><button wx:for="{{filters}}" wx:key="value" class="filter-button {{filter === item.value ? 'selected' : ''}}" data-filter="{{item.value}}" bindtap="onFilterTap">{{item.label}}</button></view>
+      <view wx:if="{{!isLoading && !records.length}}" class="empty">{{filter === 'pending' ? '没有待确认记录，已结束的安排会在这里出现。' : '没有符合筛选的记录。'}}</view>
+      <view wx:for="{{visibleRecords}}" wx:key="key" class="attendance-row">
+        <view class="date-tile"><text class="date-day">{{item.day}}</text><text class="date-weekday">{{item.weekday}}</text></view>
+        <view class="attendance-body"><button class="course-link" data-id="{{item.courseId}}" bindtap="onCourseTap">{{item.courseIcon || '📖'}} {{item.courseName}} {{item.archived ? '· 已归档' : ''}} ›</button><text class="record-meta">{{item.dateLabel}}{{item.time ? ' · ' + item.time : ''}}</text><text class="outcome-label {{item.status}}">{{item.statusLabel}}{{item.debitLabel ? ' · ' + item.debitLabel : ''}}</text><text wx:if="{{item.reason}}" class="record-meta">原因：{{item.reason}}</text><text wx:if="{{item.notes}}" class="record-note">{{item.notes}}</text><button wx:if="{{item.canConfirm}}" class="text-button result-action" data-key="{{item.key}}" bindtap="onOpenAttendance" disabled="{{!ready}}">{{item.isOutcome ? '更正结果' : '确认结果'}}</button><text wx:if="{{!item.canConfirm && !item.isOutcome}}" class="record-meta">未来课程不可提前确认</text><text wx:if="{{!item.canConfirm && item.isOutcome}}" class="record-meta">旧版日期待核对，请到课程详情修改备注或撤销</text></view>
+      </view>
+      <button wx:if="{{month}}" class="text-button more-button" bindtap="onAllMonths">查看全部月份</button><button wx:if="{{visibleRecords.length < records.length}}" class="text-button more-button" bindtap="onLoadMore">再显示 30 条</button>
+    </view>
+  </view>
+  <attendance-editor open="{{attendanceOpen}}" row="{{attendanceRow}}" bind:close="onCloseAttendance" bind:saved="onAttendanceSaved" />
+</view>

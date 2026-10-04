@@ -4,7 +4,8 @@
     "pages/course-detail/course-detail",
     "pages/course-edit/course-edit",
     "pages/stats/stats",
-    "pages/profile/profile"
+    "pages/profile/profile",
+    "pages/attendance/attendance"
   ],
   "window": {
     "backgroundTextStyle": "dark",

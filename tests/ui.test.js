@@ -450,9 +450,11 @@ test('note template binds all editors, separates undo button and preserves long 
 });
 test('form has exactly three numbered sections and guarded native fields', () => {
   const template = fs.readFileSync('miniprogram/pages/course-edit/course-edit.wxml', 'utf8');
-  for (const title of ['01 / 课程信息', '02 / 课时账本', '03 / 上课备忘', '添加新课程']) assert.ok(template.includes(title));
+  for (const title of ['01 / 课程信息', '02 / 课时账本', '03 / 上课安排', '添加新课程']) assert.ok(template.includes(title));
   assert.equal((template.match(/class="panel form-section"/g) || []).length, 3);
-  for (const size of [50, 100, 500]) assert.ok(template.includes(`maxlength="${size}"`));
+  for (const size of [50, 6]) assert.ok(template.includes(`maxlength="${size}"`));
+  assert.match(template, /id="course-notes"[^>]*maxlength="\{\{course\.notes\.length > 500 \? -1 : 500\}\}"/);
+  assert.doesNotMatch(template, /id="course-schedule"/);
   assert.match(template, /class="number-grid"/); assert.match(template, /class="number-unit"/);
   const c = client(); c.load('miniprogram/pages/course-edit/course-edit.js'); const page = instance(c.definition());
   page.setData({ ready: true, saving: true, 'course.name': '保存中' }); page.onNameInput(input('误输入'));

@@ -1,0 +1,12 @@
+<view wx:if="{{open}}" class="attendance-mask" catchtap="onClose" catchtouchmove="onTouchMove">
+  <view class="attendance-sheet" catchtap="onTouchMove">
+    <text class="sheet-title">确认上课结果</text><text class="sheet-meta">{{courseName}} · {{date}}</text>
+    <view class="status-choices"><button class="status-choice {{status === 'attended' ? 'selected' : ''}}" data-status="attended" bindtap="onStatusTap" disabled="{{busy}}">出席</button><button class="status-choice {{status === 'absent' ? 'selected' : ''}}" data-status="absent" bindtap="onStatusTap" disabled="{{busy}}">缺席</button><button class="status-choice {{status === 'cancelled' ? 'selected' : ''}}" data-status="cancelled" bindtap="onStatusTap" disabled="{{busy}}">停课</button></view>
+    <view wx:if="{{status === 'absent'}}"><picker mode="selector" range="{{reasons}}" value="{{reasonIndex}}" bindchange="onReasonChange" disabled="{{busy}}"><view class="sheet-row"><text>缺席原因 · 可选</text><text>{{reason || '未填写'}} ▾</text></view></picker><view class="sheet-row"><view><text>扣 1 节课时</text><text class="debit-hint">默认不扣；按课程约定选择</text></view><switch checked="{{debit === 1}}" bindchange="onDebitChange" color="#2563EB" disabled="{{busy}}" /></view></view>
+    <text wx:else class="debit-hint">{{status === 'attended' ? '出席计 1 节，同时扣 1 节课时' : '停课不计出席，也不扣课时'}}</text>
+    <button class="note-toggle" bindtap="onToggleNotes" disabled="{{busy}}">记一句 · 可选 <text>{{noteOpen ? '−' : '＋'}}</text></button>
+    <view wx:if="{{noteOpen}}"><textarea class="sheet-note" value="{{notes}}" bindinput="onNotesInput" maxlength="{{notes.length > 60 ? -1 : 60}}" disabled="{{busy}}" placeholder="留下一句简短备注" adjust-position="{{true}}" fixed="{{true}}" cursor-spacing="24" /><text class="sheet-meta">{{notes.length}} / 60{{notes.length > 60 ? ' · 原备注完整保留，请精简后保存' : ''}}</text></view>
+    <text wx:if="{{error}}" class="sheet-error">{{error}}</text>
+    <view class="sheet-actions"><button bindtap="onClose" disabled="{{busy}}">取消</button><button class="save-outcome" bindtap="onSave" loading="{{busy}}" disabled="{{busy}}">保存结果</button></view>
+  </view>
+</view>
